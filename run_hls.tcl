@@ -10,7 +10,7 @@ create_clock -period 10 -name default
 # source "./solution1/directives.tcl"
 csim_design
 csynth_design
-cosim_design -trace_level all -tool xsim
-# export_design -format ip_catalog
+#cosim_design -trace_level all -tool xsim
+export_design -format ip_catalog
 
 exit
