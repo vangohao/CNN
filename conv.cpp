@@ -87,7 +87,7 @@ void cnn(d_type* In, d_type* Out, d_type* W, int *Parameter)
 					loop_C1:for(int c1 = 0; c1 < C_out; c1++)
 					{
 						#pragma HLS LOOP_TRIPCOUNT min=1 max=128
-						#pragma HLS PIPELINE II=7
+						#pragma HLS PIPELINE II=8
 						loop_CHout:for(int cho = 0; cho < CHout_batch_size; cho++)
 						{
 						#pragma HLS UNROLL factor = 16
