@@ -20,7 +20,7 @@ void cnn(d_type* In, d_type* Out, d_type* W, int *Parameter)
 	d_type In_1[24576];
 	d_type Out_1[14400];
 	d_type W_1[3456];
-	#pragma HLS ARRAY_PARTITION variable=Out_1 
+//	#pragma HLS ARRAY_PARTITION variable=Out_1
 
 	int CHin,CHout,R_in,C_in,K,S;
 	/*
@@ -77,37 +77,16 @@ void cnn(d_type* In, d_type* Out, d_type* W, int *Parameter)
 				// #pragma HLS PIPELINE
 					loop_CHin:for(int chi = 0; chi < CHin; chi++)
 					{
-					#pragma HLS PIPELINE
 					// #pragma HLS LOOP_FLATTEN
 					// #pragma HLS PIPELINE
 					#pragma HLS LOOP_TRIPCOUNT min=1 max=64
-						loop_CHout:for(int cho = 0; cho < (CHout + 7) / 8; cho++)
+						loop_CHout:for(int cho = 0; cho < CHout; cho++)
 						{
-						#pragma HLS LOOP_TRIPCOUNT min=1 max=32
-						// #pragma HLS UNROLL factor = 2 skip_exit_check
-							Out_1[(cho*8) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 1) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 1) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 2) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 2) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 3) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 3) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 4) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 4) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 5) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 5) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 6) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 6) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
-									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
-							Out_1[(cho*8 + 7) * (R_out * C_out) + r1 * C_out + c1] 
-								+= W_1[(cho*8 + 7) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
+						// #pragma HLS PIPELINE
+						#pragma HLS LOOP_TRIPCOUNT min=1 max=64
+						#pragma HLS UNROLL factor = 8
+							Out_1[(cho) * (R_out * C_out) + r1 * C_out + c1] 
+								+= W_1[(cho) * (CHin * (K * K)) + chi * (K * K) + kr * K + kc] 
 									* In_1[chi * (R_in * C_in) + (S * r1 + kr) * C_in + (S * c1 + kc)];
 						}
 					}
