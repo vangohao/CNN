@@ -93,22 +93,24 @@ int main()
 	d_type Out_data[Out], Output_data[Out];
 	d_type Weight_data[weight];
 	int parameter[NParameter] = {CHin, CHout, R_in, C_in, K, S};
+
+	system("pwd");
 	FILE * f_in;
-	f_in = fopen("C:\\Users\\hao\\Dropbox\\txsx\\CNN\\dat\\sample_0_input.dat", "r");
+	f_in = fopen("../../../../dat/sample_0_input.dat", "r");
 	for (int i = 0; i < In; i++)
 	{
 		fscanf(f_in, "%f", &In_data[i]);
 	}
 	fclose(f_in);
 	FILE * f_weight;
-	f_weight = fopen("C:\\Users\\hao\\Dropbox\\txsx\\CNN\\dat\\sample_0_weight.dat", "r");
+	f_weight = fopen("../../../../dat/sample_0_weight.dat", "r");
 	for (int i = 0; i < weight; i++)
 	{
 		fscanf(f_weight, "%f", &Weight_data[i]);
 	}
 	fclose(f_weight);
 	FILE * f_out;
-	f_out = fopen("C:\\Users\\hao\\Dropbox\\txsx\\CNN\\dat\\sample_0_out.dat", "r");
+	f_out = fopen("../../../../dat/sample_0_out.dat", "r");
 	for (int i = 0; i < Out; i++)
 	{
 		fscanf(f_out, "%f", &Out_data[i]);
@@ -130,6 +132,6 @@ int main()
 			if (cnt==20) return -1;
 		}
 	}
-	printf("Example 0 Passed.");
+	printf("Example 0 Passed.\n");
 	return 0;
 }
