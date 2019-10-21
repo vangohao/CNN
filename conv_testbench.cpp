@@ -90,7 +90,8 @@ int main()
 	constexpr int weight = 3 * 16 * 3 * 3;
 	constexpr int Out = 16 * 30 * 30;
 	d_type In_data[In];
-	d_type Out_data[Out], Output_data[Out];
+	d_type Output_data[Out];
+	d_type Out_data[Out];
 	d_type Weight_data[weight];
 	int parameter[NParameter] = {CHin, CHout, R_in, C_in, K, S};
 
@@ -109,6 +110,10 @@ int main()
 		fscanf(f_weight, "%f", &Weight_data[i]);
 	}
 	fclose(f_weight);
+
+	cnn(In_data, Output_data, Weight_data, parameter);
+	printf("CNN finish.\n");
+
 	FILE * f_out;
 	f_out = fopen("../../../../dat/sample_0_out.dat", "r");
 	for (int i = 0; i < Out; i++)
@@ -116,10 +121,6 @@ int main()
 		fscanf(f_out, "%f", &Out_data[i]);
 	}
 	fclose(f_out);
-
-	cnn(In_data, Output_data, Weight_data, parameter);
-	printf("CNN finish.\n");
-
 	int cnt = 0;
 	for (int i  = 0; i < Out; i++)
 	{
