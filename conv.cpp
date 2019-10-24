@@ -16,9 +16,9 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 // #pragma HLS INTERFACE m_axi depth = 14400 port = Out offset = slave
 // #pragma HLS INTERFACE m_axi depth = 3456 port = W offset = slave
 // #pragma HLS INTERFACE m_axi depth = 256 port = Parameter offset = slave
-#pragma HLS INTERFACE m_axi depth = 60000 port = In offset = slave //adjust the depth as you need
-#pragma HLS INTERFACE m_axi depth = 60000 port = Out offset = slave
-#pragma HLS INTERFACE m_axi depth = 60000 port = W offset = slave
+#pragma HLS INTERFACE m_axi depth = 10000000 port = In offset = slave //adjust the depth as you need
+#pragma HLS INTERFACE m_axi depth = 10000000 port = Out offset = slave
+#pragma HLS INTERFACE m_axi depth = 10000000 port = W offset = slave
 #pragma HLS INTERFACE m_axi depth = 256 port = Parameter offset = slave
 
 	// 当前block size :
@@ -76,10 +76,12 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	int R_out = ((R_in - K) / S) + 1;
 	int C_out = ((C_in - K) / S) + 1;
 
-	int vbR_in = bR_in - K + 1;
-	int vbC_in = bC_in - K + 1;
+	// int vbR_in = bR_in - K + 1;
+	// int vbC_in = bC_in - K + 1;
 	int vbR_out = ((bR_in - K) / S) + 1;
 	int vbC_out = ((bC_in - K) / S) + 1;
+	int vbR_in = vbR_out * S;
+	int vbC_in = vbC_out * S;
 	// int C_out = 30;
 	for (int i = 0; i < CHout * R_out * C_out; i++)
 	{
@@ -95,7 +97,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 			{
 				for (int C_in_batch = 0, C_out_batch = 0; C_in_batch < C_in; (C_in_batch += vbC_in), (C_out_batch += vbC_out))
 				{
-					printf("FUCKYOU! %d %d %d %d\n", CHin_batch, CHout_batch, R_in_batch, C_in_batch);
+					// printf("FUCKYOU! %d %d %d %d\n", CHin_batch, CHout_batch, R_in_batch, C_in_batch);
 #pragma HLS LOOP_FLATTEN OFF
 
 				loop_W:
@@ -122,7 +124,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 							for (int k = 0; k < bC_in && k + C_in_batch < C_in; k++)
 							{
 #pragma HLS PIPELINE
-								In_1[j][k][i] = In[(i + CHin_batch) * (bR_in * bC_in) + (j + R_in_batch) * bC_in + (k + C_in_batch)];
+								In_1[j][k][i] = In[(i + CHin_batch) * (R_in * C_in) + (j + R_in_batch) * C_in + (k + C_in_batch)];
 							}
 						}
 					}
