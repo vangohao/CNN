@@ -43,12 +43,12 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	const int bR_out = bR_in;
 	const int bC_out = bC_in;
 
-	d_type In_1[bR_in * bC_in * bCHin];
-	d_type Out_1[bR_out * bC_out * bCHout];
-	d_type W_1[KMax * KMax * bCHin * bCHout];
-#pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 1 dim = 1
-#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 16 dim = 1
-#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 16 dim = 1
+	d_type In_1[bR_in][bC_in][bCHin];
+	d_type Out_1[bR_out][bC_out][bCHout];
+	d_type W_1[KMax][KMax][bCHin][bCHout];
+#pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 1 dim = 3
+#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 16 dim = 3
+#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 16 dim = 4
 	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
 
 	int CHin, CHout, R_in, C_in, K, S;
@@ -109,7 +109,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 								{
 #pragma HLS PIPELINE
 
-									W_1[k * K * bCHin * bCHout + l * bCHin * bCHout + j * bCHout + i] = W[(i + CHout_batch) * (CHin * K * K) + (j + CHin_batch) * K * K + k * K + l];
+									W_1[k][l][j][i] = W[(i + CHout_batch) * (CHin * K * K) + (j + CHin_batch) * K * K + k * K + l];
 								}
 							}
 						}
@@ -122,7 +122,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 							for (int k = 0; k < bC_in && k + C_in_batch < C_in; k++)
 							{
 #pragma HLS PIPELINE
-								In_1[j * bC_in * bCHin + k * bCHin + i] = In[(i + CHin_batch) * (bR_in * bC_in) + (j + R_in_batch) * bC_in + (k + C_in_batch)];
+								In_1[j][k][i] = In[(i + CHin_batch) * (bR_in * bC_in) + (j + R_in_batch) * bC_in + (k + C_in_batch)];
 							}
 						}
 					}
@@ -135,7 +135,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 							{
 #pragma HLS PIPELINE
 								// #pragma HLS UNROLL
-								Out_1[cho + (r2) * (bC_out * bCHout) + (c2) * (bCHout)] = Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)];
+								Out_1[r2][c2][cho] = Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)];
 							}
 						}
 					}
@@ -163,7 +163,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 										for (int cho = 0; cho < bCHout; cho++)
 										{
 #pragma HLS UNROLL
-											Out_1[(cho) + r1 * bC_out * bCHout + c1 * bCHout] += W_1[(cho) + chi * (bCHout) + kr * (bCHin * bCHout * K) + kc * (bCHin * bCHout)] * In_1[chi + (S * r1 + kr) * bC_in * bCHin + (S * c1 + kc) * bCHin];
+											Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[S * r1 + kr][S * c1 + kc][chi];
 										}
 									}
 								}
@@ -179,7 +179,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 							for (int cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 							{
 #pragma HLS PIPELINE
-								Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)] = Out_1[cho + (r2) * (bC_out * bCHout) + (c2) * (bCHout)];
+								Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)] = Out_1[r2][c2][cho];
 							}
 						}
 					}
