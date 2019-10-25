@@ -54,7 +54,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 
 	ap_uint<8> CHin, CHout, R_in, C_in;
 	ap_uint<4> K;
-	ap_uint<2> S;
+	ap_uint<1> S;
 	/*
 	CHin : Input channels
 	CHout : output channels
@@ -69,31 +69,21 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	R_in = Parameter[2];
 	C_in = Parameter[3];
 	K = Parameter[4];
-	S = Parameter[5];
+	S = Parameter[5] & 1;
+	S = ~S;
 
 	if (R_in - K < 0 || C_in - K < 0)
 	{
 		return;
 	}
 
-	// memcpy(In_1, In, CHin * R_in * C_in * sizeof(d_type));
-	// memcpy(W_1, W, CHout * CHin * K * K * sizeof(d_type));
-	ap_uint<8> R_out = ((R_in - K) / S) + 1;
-	ap_uint<8> C_out = ((C_in - K) / S) + 1;
+	ap_uint<8> R_out = (((ap_uint<8>)(R_in - K)) >> S) + 1;
+	ap_uint<8> C_out = (((ap_uint<8>)(C_in - K)) >> S) + 1;
 
-	// int vbR_in = bR_in - K + 1;
-	// int vbC_in = bC_in - K + 1;
-	ap_uint<8> vbR_out = ((bR_in - K) / S) + 1;
-	ap_uint<8> vbC_out = ((bC_in - K) / S) + 1;
-	ap_uint<8> vbR_in = vbR_out * S;
-	ap_uint<8> vbC_in = vbC_out * S;
-	// int C_out = 30;
-	for (ap_uint<24> i = 0; i < CHout * R_out * C_out; i++)
-	{
-#pragma HLS LOOP_TRIPCOUNT max=16384
-#pragma HLS PIPELINE
-		Out[i] = 0;
-	}
+	ap_uint<8> vbR_out = (((ap_uint<8>)(bR_in - K)) >> S) + 1;
+	ap_uint<8> vbC_out = (((ap_uint<8>)(bC_in - K)) >> S) + 1;
+	ap_uint<8> vbR_in = vbR_out << S;
+	ap_uint<8> vbC_in = vbC_out << S;
 
 	for (ap_uint<8> R_in_batch = 0, R_out_batch = 0; R_out_batch < R_out; (R_in_batch += vbR_in), (R_out_batch += vbR_out))
 	{
@@ -122,7 +112,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 				for (ap_uint<8> CHin_batch = 0; CHin_batch < CHin; CHin_batch += bCHin)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=1
-					// printf("FUCKYOU! %d %d %d %d\n", CHin_batch, CHout_batch, R_in_batch, C_in_batch);
+					printf("FUCKYOU! %u %u %u %u\n", (unsigned)CHin_batch, (unsigned)CHout_batch, (unsigned)R_in_batch, (unsigned)C_in_batch);
 // #pragma HLS LOOP_FLATTEN OFF
 
 				loop_W:
@@ -179,7 +169,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 										for (ap_uint<8> cho = 0; cho < bCHout; cho++)
 										{
 #pragma HLS UNROLL
-											Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[S * r1 + kr][S * c1 + kc][chi];
+											Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi];
 										}
 									}
 								}
