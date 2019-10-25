@@ -34,7 +34,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	S : 1, 2
 	*/
 	const unsigned int bCHout = 32;
-	const unsigned int bCHin = 4;
+	const unsigned int bCHin = 32;
 	const unsigned int bR_in = 32;
 	const unsigned int bC_in = 32;
 	const unsigned int KMax = 5;
@@ -49,7 +49,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	d_type W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
 #pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 32 dim = 3
-// #pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor=2 dim = 2
+// #pragma HLS ARRAY_PARTITION variable = Out_1 complete
 #pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor= 32 dim=4
 	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
 
@@ -105,7 +105,9 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 						{
 #pragma HLS PIPELINE
+
 							// #pragma HLS UNROLL
+							// Out_1[r2][c2][cho] = 0;
 							Out_1[r2][c2][cho] = Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)];
 						}
 					}
