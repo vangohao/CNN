@@ -33,7 +33,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	K : 2, 3, 5
 	S : 1, 2
 	*/
-	const unsigned int bCHout = 16;
+	const unsigned int bCHout = 32;
 	const unsigned int bCHin = 4;
 	const unsigned int bR_in = 32;
 	const unsigned int bC_in = 32;
@@ -47,10 +47,10 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	d_type In_1[bR_in][bC_in][bCHin];
 	d_type Out_1[bR_out][bC_out][bCHout];
 	d_type W_1[KMax][KMax][bCHin][bCHout];
-#pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
-#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 16 dim = 3
-#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor=2 dim = 2
-#pragma HLS ARRAY_PARTITION variable = W_1 complete
+// #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
+#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 32 dim = 3
+// #pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor=2 dim = 2
+#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor= 32 dim=4
 	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
 
 	ap_uint<8> CHin, CHout, R_in, C_in;
@@ -164,7 +164,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 								loop_C1:
 									for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
 									{
-#pragma HLS UNROLL factor = 2
+// #pragma HLS UNROLL factor = 2
 #pragma HLS PIPELINE
 									loop_CHout:
 										for (ap_uint<8> cho = 0; cho < bCHout; cho++)
