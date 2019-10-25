@@ -1,4 +1,5 @@
 #include "conv.h"
+#include <ap_int.h>
 #include <stdio.h>
 void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 {
@@ -32,16 +33,16 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	K : 2, 3, 5
 	S : 1, 2
 	*/
-	const int bCHout = 16;
-	const int bCHin = 4;
-	const int bR_in = 32;
-	const int bC_in = 32;
-	const int KMax = 5;
-	const int SMin = 1;
+	const unsigned int bCHout = 16;
+	const unsigned int bCHin = 4;
+	const unsigned int bR_in = 32;
+	const unsigned int bC_in = 32;
+	const unsigned int KMax = 5;
+	const unsigned int SMin = 1;
 
 	// 为方便起见, 在block计算时默认增加Padding, 即bR_out=bR_in, 不过Out_1中只有部分会被使用, 算完后抛弃多余的.
-	const int bR_out = bR_in;
-	const int bC_out = bC_in;
+	const unsigned int bR_out = bR_in;
+	const unsigned int bC_out = bC_in;
 
 	d_type In_1[bR_in][bC_in][bCHin];
 	d_type Out_1[bR_out][bC_out][bCHout];
@@ -51,7 +52,9 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 #pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 16 dim = 4
 	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
 
-	int CHin, CHout, R_in, C_in, K, S;
+	ap_uint<8> CHin, CHout, R_in, C_in;
+	ap_uint<4> K;
+	ap_uint<2> S;
 	/*
 	CHin : Input channels
 	CHout : output channels
@@ -60,53 +63,55 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	K : kernel size (Kr = Kc)
 	S : Stride
 	*/
-	int parameter_buffer[NParameter];
 
-	memcpy((void *)parameter_buffer, (const int *)Parameter, NParameter * sizeof(int));
-	//  = {3, 16, 32, 32, 3, 1}
-	CHin = parameter_buffer[0];
-	CHout = parameter_buffer[1];
-	R_in = parameter_buffer[2];
-	C_in = parameter_buffer[3];
-	K = parameter_buffer[4];
-	S = parameter_buffer[5];
+	CHin = Parameter[0];
+	CHout = Parameter[1];
+	R_in = Parameter[2];
+	C_in = Parameter[3];
+	K = Parameter[4];
+	S = Parameter[5];
+
+	if (R_in - K < 0 || C_in - K < 0)
+	{
+		return;
+	}
 
 	// memcpy(In_1, In, CHin * R_in * C_in * sizeof(d_type));
 	// memcpy(W_1, W, CHout * CHin * K * K * sizeof(d_type));
-	int R_out = ((R_in - K) / S) + 1;
-	int C_out = ((C_in - K) / S) + 1;
+	ap_uint<8> R_out = ((R_in - K) / S) + 1;
+	ap_uint<8> C_out = ((C_in - K) / S) + 1;
 
 	// int vbR_in = bR_in - K + 1;
 	// int vbC_in = bC_in - K + 1;
-	int vbR_out = ((bR_in - K) / S) + 1;
-	int vbC_out = ((bC_in - K) / S) + 1;
-	int vbR_in = vbR_out * S;
-	int vbC_in = vbC_out * S;
+	ap_uint<8> vbR_out = ((bR_in - K) / S) + 1;
+	ap_uint<8> vbC_out = ((bC_in - K) / S) + 1;
+	ap_uint<8> vbR_in = vbR_out * S;
+	ap_uint<8> vbC_in = vbC_out * S;
 	// int C_out = 30;
-	for (int i = 0; i < CHout * R_out * C_out; i++)
+	for (ap_uint<24> i = 0; i < CHout * R_out * C_out; i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=16384
 #pragma HLS PIPELINE
 		Out[i] = 0;
 	}
 
-	for (int R_in_batch = 0, R_out_batch = 0; R_out_batch < R_out; (R_in_batch += vbR_in), (R_out_batch += vbR_out))
+	for (ap_uint<8> R_in_batch = 0, R_out_batch = 0; R_out_batch < R_out; (R_in_batch += vbR_in), (R_out_batch += vbR_out))
 	{
 #pragma HLS LOOP_TRIPCOUNT max=1
-		for (int C_in_batch = 0, C_out_batch = 0; C_out_batch < C_out; (C_in_batch += vbC_in), (C_out_batch += vbC_out))
+		for (ap_uint<8> C_in_batch = 0, C_out_batch = 0; C_out_batch < C_out; (C_in_batch += vbC_in), (C_out_batch += vbC_out))
 		{
 #pragma HLS LOOP_TRIPCOUNT max=1
-			for (int CHout_batch = 0; CHout_batch < CHout; CHout_batch += bCHout)
+			for (ap_uint<8> CHout_batch = 0; CHout_batch < CHout; CHout_batch += bCHout)
 			{
 #pragma HLS LOOP_TRIPCOUNT max=1
 			loop_Out:
-				for (int r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
+				for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=32
-					for (int c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
+					for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
-						for (int cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
+						for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 						{
 #pragma HLS PIPELINE
 							// #pragma HLS UNROLL
@@ -114,21 +119,21 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						}
 					}
 				}
-				for (int CHin_batch = 0; CHin_batch < CHin; CHin_batch += bCHin)
+				for (ap_uint<8> CHin_batch = 0; CHin_batch < CHin; CHin_batch += bCHin)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=1
 					// printf("FUCKYOU! %d %d %d %d\n", CHin_batch, CHout_batch, R_in_batch, C_in_batch);
 // #pragma HLS LOOP_FLATTEN OFF
 
 				loop_W:
-					for (int i = 0; i < bCHout && i + CHout_batch < CHout; i++)
+					for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
 					{
-						for (int j = 0; j < bCHin && j + CHin_batch < CHin; j++)
+						for (ap_uint<8> j = 0; j < bCHin && j + CHin_batch < CHin; j++)
 						{
-							for (int k = 0; k < K; k++)
+							for (ap_uint<4> k = 0; k < K; k++)
 							{
 #pragma HLS LOOP_TRIPCOUNT min=3 max=3
-								for (int l = 0; l < K; l++)
+								for (ap_uint<4> l = 0; l < K; l++)
 								{
 #pragma HLS LOOP_TRIPCOUNT min=3 max=3
 #pragma HLS PIPELINE
@@ -139,11 +144,11 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						}
 					}
 				loop_In:
-					for (int j = 0; j < bR_in && j + R_in_batch < R_in; j++)
+					for (ap_uint<8> j = 0; j < bR_in && j + R_in_batch < R_in; j++)
 					{
-						for (int k = 0; k < bC_in && k + C_in_batch < C_in; k++)
+						for (ap_uint<8> k = 0; k < bC_in && k + C_in_batch < C_in; k++)
 						{
-							for (int i = 0; i < bCHin && i + CHin_batch < CHin; i++)
+							for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
 							{
 #pragma HLS PIPELINE
 								In_1[j][k][i] = In[(i + CHin_batch) * (R_in * C_in) + (j + R_in_batch) * C_in + (k + C_in_batch)];
@@ -152,26 +157,26 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 					}
 
 				loop_Kr:
-					for (int kr = 0; kr < K; kr++)
+					for (ap_uint<4> kr = 0; kr < K; kr++)
 					{
 #pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
 					loop_Kc:
-						for (int kc = 0; kc < K; kc++)
+						for (ap_uint<4> kc = 0; kc < K; kc++)
 						{
 #pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
 						loop_CHin:
-							for (int chi = 0; chi < bCHin && chi + CHin_batch < CHin; chi++)
+							for (ap_uint<8> chi = 0; chi < bCHin && chi + CHin_batch < CHin; chi++)
 							{
 							loop_R1:
-								for (int r1 = 0; r1 < bR_in; r1++)
+								for (ap_uint<8> r1 = 0; r1 < bR_in; r1++)
 								{
 								loop_C1:
-									for (int c1 = 0; c1 < bC_in; c1++)
+									for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
 									{
 // #pragma HLS UNROLL factor = 4
 #pragma HLS PIPELINE
 									loop_CHout:
-										for (int cho = 0; cho < bCHout; cho++)
+										for (ap_uint<8> cho = 0; cho < bCHout; cho++)
 										{
 #pragma HLS UNROLL
 											Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[S * r1 + kr][S * c1 + kc][chi];
@@ -184,13 +189,13 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 
 				}
 			loop_AddedOut:
-				for (int r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
+				for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=32
-					for (int c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
+					for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
-						for (int cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
+						for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 						{
 #pragma HLS PIPELINE
 							Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)] = Out_1[r2][c2][cho];
