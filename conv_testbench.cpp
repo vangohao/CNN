@@ -112,8 +112,8 @@ int example0()
 	}
 	fclose(f_weight);
 
-	// cnn(In_data, Output_data, Weight_data, parameter);
-	// printf("CNN finish.\n");
+	cnn(In_data, Output_data, Weight_data, parameter);
+	printf("CNN finish.\n");
 
 	FILE * f_out;
 	f_out = fopen("../../../../dat/sample_0_out.dat", "r");
@@ -123,18 +123,18 @@ int example0()
 	}
 	fclose(f_out);
 	int cnt = 0;
-	// for (int i  = 0; i < Out; i++)
-	// {
-	// 	if (Out_data[i] - Output_data[i] > 1e-6 || Out_data[i] - Output_data[i] < -1e-6)
-	// 	{
-	// 		printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
-	// 			 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
-	// 		// return -1;
-	// 		cnt ++;
-	// 		if (cnt==20) return -1;
-	// 	}
-	// }
-	// printf("Example 0 Passed.\n");
+	for (int i  = 0; i < Out; i++)
+	{
+		if (Out_data[i] - Output_data[i] > 1e-6 || Out_data[i] - Output_data[i] < -1e-6)
+		{
+			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
+				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
+			// return -1;
+			cnt ++;
+			if (cnt==20) return -1;
+		}
+	}
+	printf("Example 0 Passed.\n");
 	delete In_data;
 	delete Out_data;
 	delete Output_data;

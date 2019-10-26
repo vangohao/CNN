@@ -53,36 +53,39 @@ loop_In:
 void conv_batch(d_type In_1[bR_in][bC_in][bCHin],d_type Out_1[bR_out][bC_out][bCHout]
 			,d_type W_1[KMax][KMax][bCHin][bCHout], ap_int<8> CHin_batch)
 {
-loop_Kr:
-	for (ap_uint<4> kr = 0; kr < K; kr++)
+	if (CHin_batch)
 	{
-	#pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
-	loop_Kc:
-		for (ap_uint<4> kc = 0; kc < K; kc++)
+	loop_Kr:
+		for (ap_uint<4> kr = 0; kr < K; kr++)
 		{
-	#pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
-		loop_CHin:
-			for (ap_uint<8> chi = 0; chi < bCHin && chi + CHin_batch < CHin; chi++)
+		#pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
+		loop_Kc:
+			for (ap_uint<4> kc = 0; kc < K; kc++)
 			{
-			loop_R1:
-				for (ap_uint<8> r1 = 0; r1 < bR_in; r1++)
+		#pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
+			loop_CHin:
+				for (ap_uint<8> chi = 0; chi < bCHin && chi + (CHin_batch - bCHin) < CHin; chi++)
 				{
-				loop_C1:
-					for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
+				loop_R1:
+					for (ap_uint<8> r1 = 0; r1 < bR_in; r1++)
 					{
-	// #pragma HLS UNROLL factor = 2
-	#pragma HLS PIPELINE
-					loop_CHout:
-						for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+					loop_C1:
+						for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
 						{
-	#pragma HLS UNROLL
-							Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi];
+		// #pragma HLS UNROLL factor = 2
+		#pragma HLS PIPELINE
+						loop_CHout:
+							for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+							{
+		#pragma HLS UNROLL
+								Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi];
+							}
 						}
 					}
 				}
 			}
 		}
-}
+	}
 }
 void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 {
@@ -189,7 +192,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 				bool ping_pong_flag = 1;
 				for (ap_uint<8> CHin_batch = 0; CHin_batch < CHin + bCHin /* ping pong add 1 */; CHin_batch += bCHin)
 				{
-#pragma HLS LOOP_TRIPCOUNT max=1
+#pragma HLS LOOP_TRIPCOUNT max=5
 					printf("FUCKYOU! %u %u %u %u\n", (unsigned)CHin_batch, (unsigned)CHout_batch, (unsigned)R_in_batch, (unsigned)C_in_batch);
 // #pragma HLS LOOP_FLATTEN OFF
 
