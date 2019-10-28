@@ -24,12 +24,13 @@ void load_w(d_type *W, d_type W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_ba
 			for (ap_uint<4> k = 0; k < K; k++)
 			{
 	#pragma HLS LOOP_TRIPCOUNT min=3 max=3
+				unsigned tmp = offset + i * (CHin * K * K) + j * K * K + k * K;
 				for (ap_uint<4> l = 0; l < K; l++)
 				{
 	#pragma HLS LOOP_TRIPCOUNT min=3 max=3
 	#pragma HLS PIPELINE
 
-					W_1[k][l][j][i] = W[offset + i * (CHin * K * K) + j * K * K + k * K + l];
+					W_1[k][l][j][i] = W[tmp + l];
 				}
 			}
 		}
@@ -38,14 +39,15 @@ void load_w(d_type *W, d_type W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_ba
 void load_in(d_type *In, d_type In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, ap_uint<8>CHin_batch, unsigned offset)
 {
 loop_In:
-	for (ap_uint<8> j = 0; j < bR_in && j + R_in_batch < R_in; j++)
+	for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
 	{
-		for (ap_uint<8> k = 0; k < bC_in && k + C_in_batch < C_in; k++)
+		for (ap_uint<8> j = 0; j < bR_in && j + R_in_batch < R_in; j++)
 		{
-			for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
+			int tmp = offset + i * (R_in * C_in) + j * C_in;
+			for (ap_uint<8> k = 0; k < bC_in && k + C_in_batch < C_in; k++)
 			{
 #pragma HLS PIPELINE
-				In_1[j][k][i] = In[offset + i * (R_in * C_in) + j * C_in + k];
+				In_1[j][k][i] = In[tmp + k];
 			}
 		}
 	}
@@ -173,19 +175,20 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 			{
 #pragma HLS LOOP_TRIPCOUNT max=1
 			loop_Out:
-				for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
+				for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=32
-					for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
+					for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
-						for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
+						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + C_out_batch;
+						for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 						{
 #pragma HLS PIPELINE
 
 							// #pragma HLS UNROLL
 							// Out_1[r2][c2][cho] = 0;
-							Out_1[r2][c2][cho] = Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)];
+							Out_1[r2][c2][cho] = Out[tmp + c2];
 						}
 					}
 				}
@@ -215,16 +218,17 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 					ping_pong_flag = !ping_pong_flag;
 				}
 			loop_AddedOut:
-				for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
+				for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=32
-					for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
+					for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
-						for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
+						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (C_out_batch);
+						for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 						{
 #pragma HLS PIPELINE
-							Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)] = Out_1[r2][c2][cho];
+							Out[tmp + c2] = Out_1[r2][c2][cho];
 						}
 					}
 				}

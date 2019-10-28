@@ -18,5 +18,4 @@ make_wrapper -files [get_files /data/hls/project_1/project_1.srcs/sources_1/bd/d
 add_files -norecurse /data/hls/project_1/project_1.srcs/sources_1/bd/design_1/hdl/design_1_wrapper.v
 reset_run synth_1
 launch_runs impl_1 -to_step write_bitstream -jobs 24
-source /data/hls/project_1/project_1.runs/impl_1/design_1_wrapper.tcl -notrace
-
+exit
