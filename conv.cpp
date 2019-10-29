@@ -2,8 +2,8 @@
 #include <ap_int.h>
 #include <stdio.h>
 const unsigned int bCHout = 32;
-const unsigned int bCHin = 16;
-const unsigned int bR_in = 32;
+const unsigned int bCHin = 4;
+const unsigned int bR_in = 64;
 const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
@@ -17,37 +17,56 @@ ap_uint<1> S;
 void load_w(d_type *W, d_type W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offset)
 {
 	loop_W:
+	unsigned tmp = offset;
 	for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
 	{
-		for (ap_uint<8> j = 0; j < bCHin && j + CHin_batch < CHin; j++)
+		tmp += (CHin * K * K);
+		unsigned k = 0, l = 0, m = 0;
+		for (ap_uint<8> j = 0; j < bCHin * K * K /* && j + CHin_batch < CHin */; j++)
 		{
-			for (ap_uint<4> k = 0; k < K; k++)
-			{
-	#pragma HLS LOOP_TRIPCOUNT min=3 max=3
-				unsigned tmp = offset + i * (CHin * K * K) + j * K * K + k * K;
-				for (ap_uint<4> l = 0; l < K; l++)
-				{
-	#pragma HLS LOOP_TRIPCOUNT min=3 max=3
-	#pragma HLS PIPELINE
-
-					W_1[k][l][j][i] = W[tmp + l];
-				}
-			}
+			// for (ap_uint<8> k = 0; k < K * K; k++)
+			// {
+	// #pragma HLS LOOP_TRIPCOUNT min=9 max=9
+	#pragma HLS PIPELINE II = 1
+					W_1[k][l][m][i] = W[tmp + j];
+					// m++;
+					// if (m == K)
+					// {
+					// 	m = 0;
+					// 	l ++;
+					// }
+					// if (l == K)
+					// {
+					// 	l = 0;
+					// 	k ++;
+					// }
+					// if (k + CHin_batch >= CHin)
+					// {
+					// 	break;
+					// }
+			// }
 		}
 	}
 }
 void load_in(d_type *In, d_type In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, ap_uint<8>CHin_batch, unsigned offset)
 {
 loop_In:
+	int tmp = offset;
 	for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
 	{
+		tmp += (R_in * C_in);
+		int tmp1 = tmp;
 		for (ap_uint<8> j = 0; j < bR_in && j + R_in_batch < R_in; j++)
 		{
-			int tmp = offset + i * (R_in * C_in) + j * C_in;
-			for (ap_uint<8> k = 0; k < bC_in && k + C_in_batch < C_in; k++)
+			tmp1 += C_in;
+			for (ap_uint<8> k = 0; k < bC_in; k++)
 			{
-#pragma HLS PIPELINE
-				In_1[j][k][i] = In[tmp + k];
+#pragma HLS PIPELINE II = 1
+				In_1[j][k][i] = In[tmp1 + k];
+				// if (k + C_in_batch >= C_in)
+				// {
+				// 	break;
+				// }
 			}
 		}
 	}
@@ -129,10 +148,10 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	d_type W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS RESOURCE variable=Out_1 core=RAM_1P_LUTRAM
 // #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
-#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 32 dim = 3
+#pragma HLS ARRAY_PARTITION variable = Out_1 complete dim = 3
 // #pragma HLS ARRAY_PARTITION variable = Out_1 complete
-#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor= 32 dim=4
-#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor= 32 dim=4
+#pragma HLS ARRAY_PARTITION variable = W_1 complete dim=4
+#pragma HLS ARRAY_PARTITION variable = W_0 complete dim=4
 	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
 
 	/*
@@ -182,13 +201,17 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
 						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + C_out_batch;
-						for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
+						for (ap_uint<8> c2 = 0; c2 < vbC_out /* && c2 + C_out_batch < C_out */; c2++)
 						{
 #pragma HLS PIPELINE
 
 							// #pragma HLS UNROLL
 							// Out_1[r2][c2][cho] = 0;
 							Out_1[r2][c2][cho] = Out[tmp + c2];
+							// if (c2 + C_out_batch < C_out)
+							// {
+							// 	break;
+							// }
 						}
 					}
 				}
@@ -225,10 +248,14 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
 						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (C_out_batch);
-						for (ap_uint<8> c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
+						for (ap_uint<8> c2 = 0; c2 < vbC_out /* && c2 + C_out_batch < C_out */; c2++)
 						{
 #pragma HLS PIPELINE
 							Out[tmp + c2] = Out_1[r2][c2][cho];
+							// if(c2 + C_out_batch < C_out)
+							// {
+							// 	break;
+							// }
 						}
 					}
 				}
