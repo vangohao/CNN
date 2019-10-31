@@ -1,7 +1,0 @@
-cnn_fadd_32ns_32ncud
-cnn_fmul_32ns_32ndEe
-cnn_sdiv_32ns_32seOg
-cnn_parameter_bufbkb
-cnn_AXILiteS_s_axi
-cnn_gmem_m_axi
-cnn
