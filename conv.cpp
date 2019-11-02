@@ -2,10 +2,10 @@
 #include <math.h>
 #include <ap_int.h>
 #include <stdio.h>
-const unsigned int bCHout = 32;
-const unsigned int bCHin = 4;
-const unsigned int bR_in = 64;
-const unsigned int bC_in = 32;
+const unsigned int bCHout = 16;
+const unsigned int bCHin = 32;
+const unsigned int bR_in = 40;
+const unsigned int bC_in = 40;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
 const int qut = 32;
@@ -40,12 +40,12 @@ inline float to_float32(ap_int<8> x)
 	return y;
 }
 
-void load_w(d_type *W, ap_int<8> W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offset)
+void load_w_in(d_type *W, ap_int<8> W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offsetw, d_type *In, ap_int<8> In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, unsigned offsetin)
 {
-	loop_W:
-	unsigned tmp = offset;
+	unsigned tmp = offsetw;
 	unsigned CHinKK = CHin * K * K;
 	unsigned bCHinKK = bCHin * K * K;
+loop_W:
 	for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
 	{
 		tmp += CHinKK;
@@ -75,12 +75,9 @@ void load_w(d_type *W, ap_int<8> W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout
 			// }
 		}
 	}
-}
-void load_in(d_type *In, ap_int<8> In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, ap_uint<8>CHin_batch, unsigned offset)
-{
-loop_In:
-	int tmp = offset;
+	tmp = offsetin;
 	unsigned R_inC_in = R_in * C_in;
+loop_In:
 	for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
 	{
 		tmp += R_inC_in;
@@ -97,6 +94,7 @@ loop_In:
 		}
 	}
 }
+
 void conv_batch(ap_int<8> In_1[bR_in][bC_in][bCHin],ap_int<8> Out_1[bR_out][bC_out][bCHout]
 			,ap_int<8> W_1[KMax][KMax][bCHin][bCHout], ap_uint<8> CHin_batch)
 {
@@ -110,19 +108,20 @@ void conv_batch(ap_int<8> In_1[bR_in][bC_in][bCHin],ap_int<8> Out_1[bR_out][bC_o
 			for (ap_uint<4> kc = 0; kc < K; kc++)
 			{
 		#pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
-			loop_CHin:
-				for (ap_uint<8> chi = 0; chi < bCHin && chi + (CHin_batch - bCHin) < CHin; chi++)
+			loop_R1:
+				for (ap_uint<8> r1 = 0; r1 < bR_in; r1++)
 				{
-				loop_R1:
-					for (ap_uint<8> r1 = 0; r1 < bR_in; r1++)
+				loop_C1:
+					for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
 					{
-					loop_C1:
-						for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
-						{
 		// #pragma HLS UNROLL factor = 2
 		#pragma HLS PIPELINE
+					loop_CHin:
+						for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+						{
+		#pragma HLS UNROLL
 						loop_CHout:
-							for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+							for (ap_uint<8> chi = 0; chi < bCHin/*  && chi + (CHin_batch - bCHin) < CHin */; chi++)
 							{
 		#pragma HLS UNROLL
 								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]) >> qul);
@@ -173,12 +172,17 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	ap_int<8> W_0[KMax][KMax][bCHin][bCHout];
 	ap_int<8> W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS RESOURCE variable=Out_1 core=RAM_1P_LUTRAM
-// #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
+#pragma HLS ARRAY_PARTITION variable = In_1 complete dim=3
+// #pragma HLS ARRAY_PARTITION variable = In_1 complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = Out_1 complete dim = 3
-// #pragma HLS ARRAY_PARTITION variable = Out_1 complete
+// #pragma HLS ARRAY_PARTITION variable = Out_1 complete dim=2
 #pragma HLS ARRAY_PARTITION variable = W_1 complete dim=4
+#pragma HLS ARRAY_PARTITION variable = W_1 complete dim=3
 #pragma HLS ARRAY_PARTITION variable = W_0 complete dim=4
-	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
+#pragma HLS ARRAY_PARTITION variable = W_0 complete dim=3
+	// #pragma HLS ARRAY_PARTITION variable=W_1 complete dim=0
+	// #pragma HLS ARRAY_PARTITION variable=W_0 complete dim=0
+
 
 	/*
 	CHin : Input channels
@@ -189,12 +193,15 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	S : Stride
 	*/
 
-	CHin = Parameter[0];
-	CHout = Parameter[1];
-	R_in = Parameter[2];
-	C_in = Parameter[3];
-	K = Parameter[4];
-	S = Parameter[5] & 1;
+	int parameter[6];
+	memcpy(parameter, Parameter, 6 * sizeof(int));
+
+	CHin = parameter[0];
+	CHout = parameter[1];
+	R_in = parameter[2];
+	C_in = parameter[3];
+	K = parameter[4];
+	S = parameter[5] & 1;
 	S = ~S;
 
 	if (R_in - K < 0 || C_in - K < 0)
@@ -253,14 +260,12 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 
 					if (ping_pong_flag)
 					{
-						load_w(W, W_1, CHout_batch, CHin_batch, w_offset);
-						load_in(In, In_1, R_in_batch, C_in_batch, CHin_batch, in_offset);
+						load_w_in(W, W_1, CHout_batch, CHin_batch, w_offset, In, In_1, R_in_batch, C_in_batch, in_offset);
 						conv_batch(In_0, Out_1, W_0, CHin_batch);
 					}
 					else
 					{
-						load_w(W, W_0, CHout_batch, CHin_batch, w_offset);
-						load_in(In, In_0, R_in_batch, C_in_batch, CHin_batch, in_offset);
+						load_w_in(W, W_0, CHout_batch, CHin_batch, w_offset, In, In_0, R_in_batch, C_in_batch, in_offset);
 						conv_batch(In_1, Out_1, W_1, CHin_batch);
 					}
 
