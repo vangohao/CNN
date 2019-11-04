@@ -122,7 +122,7 @@ int example0()
 	}
 	fclose(f_weight);
 
-	cnn_test(In_data, Output_data, Weight_data, parameter);
+	cnn(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out;
@@ -244,7 +244,7 @@ int example2()
 	parameter[4] = K;
 	parameter[5] = S;
 
-	printf("Begin sample_1.\n");
+	printf("Begin sample_2.\n");
 	FILE *f_in = fopen("../../../../dat/sample_input.dat", "r");
 	for (int i = 0; i < In; i++)
 	{
@@ -261,7 +261,7 @@ int example2()
 	printf("Finish read weight.\n");
 
 	// cnn(In_data, Output_data, Weight_data, parameter);
-	cnn_test(In_data, Output_data, Weight_data, parameter);
+	cnn(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_out_25.dat", "r");
@@ -311,7 +311,7 @@ int example3()
 	parameter[4] = K;
 	parameter[5] = S;
 
-	printf("Begin sample_1.\n");
+	printf("Begin sample_3.\n");
 	FILE *f_in = fopen("../../../../dat/sample_input.dat", "r");
 	for (int i = 0; i < In; i++)
 	{
@@ -328,7 +328,7 @@ int example3()
 	printf("Finish read weight.\n");
 
 	// cnn(In_data, Output_data, Weight_data, parameter);
-	cnn_test(In_data, Output_data, Weight_data, parameter);
+	cnn(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_out_50.dat", "r");
@@ -378,7 +378,7 @@ int example4()
 	parameter[4] = K;
 	parameter[5] = S;
 
-	printf("Begin sample_1.\n");
+	printf("Begin sample_4.\n");
 	FILE *f_in = fopen("../../../../dat/sample_input.dat", "r");
 	for (int i = 0; i < In; i++)
 	{
@@ -395,7 +395,7 @@ int example4()
 	printf("Finish read weight.\n");
 
 	// cnn(In_data, Output_data, Weight_data, parameter);
-	cnn_test(In_data, Output_data, Weight_data, parameter);
+	cnn(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_out_75.dat", "r");
@@ -422,10 +422,10 @@ int example4()
 
 int main()
 {
-	example0();
-	example1();
+	// example0();
+	// example1();
 	example2();
-	example3();
-	example4();
+	// example3();
+	// example4();
 	return 0;
 }
