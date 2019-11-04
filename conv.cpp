@@ -66,12 +66,26 @@ loop_W:
 	for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
 	{
 		unsigned k = 0, l = 0, m = 0;
-		for (ap_uint<8> j = 0; j < bCHinKK /* && j + CHin_batch < CHin */; j++)
+		if (k != 0 || l!= 0 || m!=0)
+		{
+						std::cerr<<"GGGG"<<m<<" "<<l<<" "<<k<<std::endl;
+			
+		}
+		for (unsigned j = 0; j < bCHinKK /* && j + CHin_batch < CHin */; j++)
 		{
 			// for (ap_uint<8> k = 0; k < K * K; k++)
 			// {
 	// #pragma HLS LOOP_TRIPCOUNT min=9 max=9
 	#pragma HLS PIPELINE II = 2
+					if (j != m + l * K + k * K * K)
+					{
+						std::cerr<<K<<"FUCK"<<m<<" "<<l<<" "<<k<<" "<<j<<std::endl;
+						exit(0);
+					}
+					if (l==0 && m==0 &&k==13 && i==0 )
+					{
+						// std::cerr<<K<<" "<<tmp<<" "<<j<<" "<<tmp + j << " "<< W[tmp + j]<<std::endl;
+					}
 					W_1[l][m][k][i] = to_int8(W[tmp + j]);
 					m++;
 					if (m == K)
@@ -143,11 +157,11 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],BLOCKTYPE Out_1[bR_out][bC_o
 							for (unsigned cho = 0; cho < bCHout; cho++)
 							{
 		#pragma HLS UNROLL
-								if (cho==0 && r1==0  && c1==0 && chi < 3 && CHout_batch == 4)
+								if (cho==0 && r1==0  && c1==0 && CHout_batch == 0 && to_float32(W_1[kr][kc][chi][cho]) != W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc])
 								{
-									// std::cerr<<kr<<" "<<kc<<" "<<chi<<" "<<cho<<" "<<rr<<" "<<cc<<" "<<std::endl;
-									// std::cerr<<to_float32(Out_1[r1][c1][cho]) <<" "<<to_float32(W_1[kr][kc][chi][cho])<<" "<<to_float32(In_1[rr][cc][chi])<<" "<<W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc]
-									// << " "<< In[chi * C_in * R_in + rr * C_in + cc] << std::endl;
+									std::cerr<<kr<<" "<<kc<<" "<<chi<<" "<<cho<<" "<<rr<<" "<<cc<<" "<<std::endl;
+									std::cerr<<to_float32(Out_1[r1][c1][cho]) <<" "<<to_float32(W_1[kr][kc][chi][cho])<<" "<<to_float32(In_1[rr][cc][chi])<<" "<<W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc]
+									<< " "<< In[chi * C_in * R_in + rr * C_in + cc] << std::endl;
 								}
 								// std::cout<< kr<<" "<<kc<<" "<<r1<<" "<<c1<<" "<<chi<<" "<<cho<<std::endl;
 								// std::cout<<Out_1[r1][c1][cho]<<" "<<W_1[kr][kc][chi][cho]<<" "<<In_1[(r1 << S) + kr][(c1 << S) + kc][chi]<<std::endl;
