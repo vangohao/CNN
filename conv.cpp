@@ -2,7 +2,7 @@
 #include <math.h>
 #include <ap_int.h>
 #include <stdio.h>
-const unsigned int bCHout = 16;
+const unsigned int bCHout = 4;
 const unsigned int bCHin = 32;
 const unsigned int bR_in = 40;
 const unsigned int bC_in = 40;
@@ -57,21 +57,21 @@ loop_W:
 	// #pragma HLS LOOP_TRIPCOUNT min=9 max=9
 	#pragma HLS PIPELINE II = 1
 					W_1[k][l][m][i] = to_int8(W[tmp + j]);
-					// m++;
-					// if (m == K)
-					// {
-					// 	m = 0;
-					// 	l ++;
-					// }
-					// if (l == K)
-					// {
-					// 	l = 0;
-					// 	k ++;
-					// }
-					// if (k + CHin_batch >= CHin)
-					// {
-					// 	break;
-					// }
+					m++;
+					if (m == K)
+					{
+						m = 0;
+						l ++;
+					}
+					if (l == K)
+					{
+						l = 0;
+						k ++;
+					}
+					if (k + CHin_batch >= CHin)
+					{
+						break;
+					}
 			// }
 		}
 	}
@@ -117,11 +117,11 @@ void conv_batch(ap_int<8> In_1[bR_in][bC_in][bCHin],ap_int<8> Out_1[bR_out][bC_o
 		// #pragma HLS UNROLL factor = 2
 		#pragma HLS PIPELINE
 					loop_CHin:
-						for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+							for (ap_uint<8> chi = 0; chi < bCHin/*  && chi + (CHin_batch - bCHin) < CHin */; chi++)
 						{
 		#pragma HLS UNROLL
 						loop_CHout:
-							for (ap_uint<8> chi = 0; chi < bCHin/*  && chi + (CHin_batch - bCHin) < CHin */; chi++)
+						for (ap_uint<8> cho = 0; cho < bCHout; cho++)
 							{
 		#pragma HLS UNROLL
 								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]) >> qul);
@@ -171,8 +171,10 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	ap_int<8> In_0[bR_in][bC_in][bCHin];
 	ap_int<8> W_0[KMax][KMax][bCHin][bCHout];
 	ap_int<8> W_1[KMax][KMax][bCHin][bCHout];
-// #pragma HLS RESOURCE variable=Out_1 core=RAM_1P_LUTRAM
+#pragma HLS RESOURCE variable=W_0 core=RAM_1P_LUTRAM
+#pragma HLS RESOURCE variable=W_1 core=RAM_1P_LUTRAM
 #pragma HLS ARRAY_PARTITION variable = In_1 complete dim=3
+#pragma HLS ARRAY_PARTITION variable = In_0 complete dim=3
 // #pragma HLS ARRAY_PARTITION variable = In_1 complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = Out_1 complete dim = 3
 // #pragma HLS ARRAY_PARTITION variable = Out_1 complete dim=2
