@@ -12,9 +12,10 @@ const unsigned int bC_in = 40;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
 const int qut = 48;
-const int qul = 5;
-const float minpos = 0.05 / qut;
-const float maxneg = -0.05 / qut;
+const int qutw = 3590;
+// const int quto = 48;
+const float minpos = 0.0 / qut;
+const float maxneg = -0.0 / qut;
 
 // 为方便起见, 在block计算时默认增加Padding, 即bR_out=bR_in, 不过Out_1中只有部分会被使用, 算完后抛弃多余的.
 const unsigned int bR_out = bR_in;
@@ -24,37 +25,64 @@ ap_uint<4> K;
 ap_uint<1> S;
 ap_uint<2> Stride;
 ap_uint<8> vbC_out, vbR_out;
-inline BLOCKTYPE to_int8(d_type x)
+
+inline BLOCKTYPE w_to_int8(d_type x)
 {
-	// BLOCKTYPE y = 0;
-	// try
-	// {
+	BLOCKTYPE y = 0;
+	try
+	{
 		
-	// y = x * qut;
-	// }
-	// catch(const std::exception& e)
-	// {
-	// 	std::cerr << x <<" "<<qut<<" "<<y<<std::endl;
-	// 	throw;
-	// }
+	y = x * qutw;
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << x <<" "<<qut<<" "<<y<<std::endl;
+		throw;
+	}
 	
-	// if (x > minpos)
-	// {
-	// 	y++;
-	// }
-	// else if (x < maxneg)
-	// {
-	// 	y--;
-	// }
-	// return y;
-	return x;
+	if (x > minpos)
+	{
+		y++;
+	}
+	else if (x < maxneg)
+	{
+		y--;
+	}
+	return y;
+	// return x;
+}
+
+inline BLOCKTYPE in_to_int8(d_type x)
+{
+	BLOCKTYPE y = 0;
+	try
+	{
+		
+	y = x * qut;
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << x <<" "<<qut<<" "<<y<<std::endl;
+		throw;
+	}
+	
+	if (x > minpos)
+	{
+		y++;
+	}
+	else if (x < maxneg)
+	{
+		y--;
+	}
+	return y;
+	// return x;
 }
 
 inline float to_float32(BLOCKTYPE x)
 {
-	// float y = x / (float)(qut);
-	// return y;
-	return x;
+	float y = x / (float)(qut);
+	return y;
+	// return x;
 }
 
 void load_w_in(d_type *W, BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offsetw, d_type *In, BLOCKTYPE In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, unsigned offsetin)
@@ -86,7 +114,7 @@ loop_W:
 					{
 						// std::cerr<<K<<" "<<tmp<<" "<<j<<" "<<tmp + j << " "<< W[tmp + j]<<std::endl;
 					}
-					W_1[l][m][k][i] = to_int8(W[tmp + j]);
+					W_1[l][m][k][i] = w_to_int8(W[tmp + j]);
 					m++;
 					if (m == K)
 					{
@@ -117,7 +145,7 @@ loop_In:
 			for (ap_uint<8> k = 0; k < bC_in; k++)
 			{
 #pragma HLS PIPELINE II = 1
-				In_1[j][k][i] = to_int8(In[tmp1 + k]);
+				In_1[j][k][i] = in_to_int8(In[tmp1 + k]);
 				
 			}
 			tmp1 += C_in;
@@ -159,14 +187,14 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],BLOCKTYPE Out_1[bR_out][bC_o
 		#pragma HLS UNROLL
 								if (cho==0 && r1==0  && c1==0 && CHout_batch == 0 && to_float32(W_1[kr][kc][chi][cho]) != W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc])
 								{
-									std::cerr<<kr<<" "<<kc<<" "<<chi<<" "<<cho<<" "<<rr<<" "<<cc<<" "<<std::endl;
-									std::cerr<<to_float32(Out_1[r1][c1][cho]) <<" "<<to_float32(W_1[kr][kc][chi][cho])<<" "<<to_float32(In_1[rr][cc][chi])<<" "<<W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc]
-									<< " "<< In[chi * C_in * R_in + rr * C_in + cc] << std::endl;
+									// std::cerr<<kr<<" "<<kc<<" "<<chi<<" "<<cho<<" "<<rr<<" "<<cc<<" "<<std::endl;
+									// std::cerr<<to_float32(Out_1[r1][c1][cho]) <<" "<<to_float32(W_1[kr][kc][chi][cho])<<" "<<to_float32(In_1[rr][cc][chi])<<" "<<W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc]
+									// << " "<< In[chi * C_in * R_in + rr * C_in + cc] << std::endl;
 								}
 								// std::cout<< kr<<" "<<kc<<" "<<r1<<" "<<c1<<" "<<chi<<" "<<cho<<std::endl;
 								// std::cout<<Out_1[r1][c1][cho]<<" "<<W_1[kr][kc][chi][cho]<<" "<<In_1[(r1 << S) + kr][(c1 << S) + kc][chi]<<std::endl;
 								// fflush(stdout);
-								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) /* / qut */ /* >> qul */);
+								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) / qutw /* >> qul */);
 							}
 						}
 					}
@@ -279,13 +307,13 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
 						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + C_out_batch;
-						for (ap_uint<8> c2 = 0; c2 < vbC_out /* && c2 + C_out_batch < C_out */; c2++)
+						for (unsigned c2 = 0; c2 < vbC_out /* && c2 + C_out_batch < C_out */; c2++)
 						{
 #pragma HLS PIPELINE
 
 							// #pragma HLS UNROLL
-							Out_1[r2][c2][cho] = 0;
-							// Out_1[r2][c2][cho] = to_int8(Out[tmp + c2]);
+							// Out_1[r2][c2][cho] = 0;
+							Out_1[r2][c2][cho] = in_to_int8(Out[tmp + c2]);
 							// if (c2 + C_out_batch < C_out)
 							// {
 							// 	break;

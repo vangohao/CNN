@@ -206,7 +206,7 @@ int example1()
 	int cnt = 0;
 	for (int i  = 0; i < Out; i++)
 	{
-		if (Out_data[i] - Output_data[i] > 1e-4 || Out_data[i] - Output_data[i] < -1e-4)
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
@@ -273,7 +273,7 @@ int example2()
 	int cnt = 0;
 	for (int i  = 0; i < Out; i++)
 	{
-		if (Out_data[i] - Output_data[i] > 1e-4 || Out_data[i] - Output_data[i] < -1e-4)
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
@@ -340,7 +340,7 @@ int example3()
 	int cnt = 0;
 	for (int i  = 0; i < Out; i++)
 	{
-		if (Out_data[i] - Output_data[i] > 1e-4 || Out_data[i] - Output_data[i] < -1e-4)
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
@@ -407,7 +407,7 @@ int example4()
 	int cnt = 0;
 	for (int i  = 0; i < Out; i++)
 	{
-		if (Out_data[i] - Output_data[i] > 1e-4 || Out_data[i] - Output_data[i] < -1e-4)
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
