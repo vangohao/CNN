@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <memory.h>
+#include <math.h>
+#define CNN cnn
 void cnn_test(d_type* In, d_type* Out, d_type* W, int *Parameter)
 {
 
@@ -122,7 +124,7 @@ int example0()
 	}
 	fclose(f_weight);
 
-	cnn(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out;
@@ -193,8 +195,7 @@ int example1()
 	fclose(f_weight);
 	printf("Finish read weight.\n");
 
-	cnn_test(In_data, Output_data, Weight_data, parameter);
-	// cnn_test(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_1_out.dat", "r");
@@ -260,8 +261,7 @@ int example2()
 	fclose(f_weight);
 	printf("Finish read weight.\n");
 
-	// cnn(In_data, Output_data, Weight_data, parameter);
-	cnn(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_out_25.dat", "r");
@@ -271,18 +271,21 @@ int example2()
 	}
 	fclose(f_out);
 	int cnt = 0;
+	float norm1 = 0, norm2 = 0;
 	for (int i  = 0; i < Out; i++)
 	{
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
+			if (cnt < 20)
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
-			// return -1;
 			cnt ++;
-			if (cnt==20) return -1;
 		}
+		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
+		norm2 += Out_data[i] * Out_data[i];
 	}
-	printf("Example 2 Passed.\n");
+	float rela_res = sqrt(norm1) / sqrt(norm2);
+	printf("Example 2 Passed.  Residual = %f\n", rela_res);
 	return 0;
 }
 
@@ -327,8 +330,7 @@ int example3()
 	fclose(f_weight);
 	printf("Finish read weight.\n");
 
-	// cnn(In_data, Output_data, Weight_data, parameter);
-	cnn(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_out_50.dat", "r");
@@ -338,18 +340,21 @@ int example3()
 	}
 	fclose(f_out);
 	int cnt = 0;
+	float norm1 = 0, norm2 = 0;
 	for (int i  = 0; i < Out; i++)
 	{
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
+			if (cnt < 20)
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
-			// return -1;
 			cnt ++;
-			if (cnt==20) return -1;
 		}
+		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
+		norm2 += Out_data[i] * Out_data[i];
 	}
-	printf("Example 3 Passed.\n");
+	float rela_res = sqrt(norm1) / sqrt(norm2);
+	printf("Example 3 Passed.  Residual = %f\n", rela_res);
 	return 0;
 }
 
@@ -394,8 +399,7 @@ int example4()
 	fclose(f_weight);
 	printf("Finish read weight.\n");
 
-	// cnn(In_data, Output_data, Weight_data, parameter);
-	cnn(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out = fopen("../../../../dat/sample_out_75.dat", "r");
@@ -405,18 +409,21 @@ int example4()
 	}
 	fclose(f_out);
 	int cnt = 0;
+	float norm1 = 0, norm2 = 0;
 	for (int i  = 0; i < Out; i++)
 	{
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
+			if (cnt < 20)
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
-			// return -1;
 			cnt ++;
-			if (cnt==20) return -1;
 		}
+		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
+		norm2 += Out_data[i] * Out_data[i];
 	}
-	printf("Example 4 Passed.\n");
+	float rela_res = sqrt(norm1) / sqrt(norm2);
+	printf("Example 4 Passed.  Residual = %f\n", rela_res);
 	return 0;
 }
 
@@ -425,7 +432,7 @@ int main()
 	// example0();
 	// example1();
 	example2();
-	// example3();
-	// example4();
+	example3();
+	example4();
 	return 0;
 }

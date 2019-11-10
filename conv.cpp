@@ -3,16 +3,24 @@
 #include <iostream>
 #include <ap_int.h>
 #include <stdio.h>
-// #define BLOCKTYPE ap_int<8>
-#define BLOCKTYPE float
-const unsigned int bCHout = 4;
-const unsigned int bCHin = 32;
-const unsigned int bR_in = 40;
-const unsigned int bC_in = 40;
+#ifdef __SYNTHESIS__
+#define BLOCKTYPE ap_int<8>
+#define MEDIUMTYPE ap_int<8>
+#else
+#define BLOCKTYPE char
+#define MEDIUMTYPE char
+#endif
+// #define BLOCKTYPE float
+const unsigned int bCHout = 64;
+const unsigned int bCHin = 2;
+const unsigned int bR_in = 32;
+const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
-const int qut = 48;
-const int qutw = 3590;
+const float qut = 52.;
+const float qutw = 3592.;
+const int qdiv = 1966;
+const float quto = qut * qutw / (float) qdiv;
 // const int quto = 48;
 const float minpos = 0.0 / qut;
 const float maxneg = -0.0 / qut;
@@ -29,120 +37,67 @@ ap_uint<8> vbC_out, vbR_out;
 inline BLOCKTYPE w_to_int8(d_type x)
 {
 	BLOCKTYPE y = 0;
-	try
-	{
-		
 	y = x * qutw;
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << x <<" "<<qut<<" "<<y<<std::endl;
-		throw;
-	}
-	
-	if (x > minpos)
-	{
-		y++;
-	}
-	else if (x < maxneg)
-	{
-		y--;
-	}
 	return y;
-	// return x;
 }
 
 inline BLOCKTYPE in_to_int8(d_type x)
 {
 	BLOCKTYPE y = 0;
-	try
-	{
-		
 	y = x * qut;
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << x <<" "<<qut<<" "<<y<<std::endl;
-		throw;
-	}
-	
-	if (x > minpos)
-	{
-		y++;
-	}
-	else if (x < maxneg)
-	{
-		y--;
-	}
 	return y;
-	// return x;
 }
 
-inline float to_float32(BLOCKTYPE x)
+inline float out_to_int8(d_type x)
 {
-	float y = x / (float)(qut);
+	BLOCKTYPE y = 0;
+	y = x * (quto);
 	return y;
-	// return x;
 }
 
-void load_w_in(d_type *W, BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offsetw, d_type *In, BLOCKTYPE In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, unsigned offsetin)
+inline float out_to_float32(BLOCKTYPE x)
+{
+	float y = x / (quto);
+	return y;
+}
+
+void load_w_in(d_type *W, MEDIUMTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offsetw, d_type *In, MEDIUMTYPE In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, unsigned offsetin)
 {
 	unsigned tmp = offsetw;
+	unsigned KK = K * K;
 	unsigned CHinKK = CHin * K * K;
 	unsigned bCHinKK = bCHin * K * K;
 loop_W:
-	for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
+	for (unsigned i = 0; i < bCHout && i + CHout_batch < CHout; i++)
 	{
-		unsigned k = 0, l = 0, m = 0;
-		if (k != 0 || l!= 0 || m!=0)
+		unsigned tmp1 = tmp;
+		for (unsigned k = 0; k < bCHin && k + CHin_batch < CHin; k++)
 		{
-						std::cerr<<"GGGG"<<m<<" "<<l<<" "<<k<<std::endl;
-			
-		}
-		for (unsigned j = 0; j < bCHinKK /* && j + CHin_batch < CHin */; j++)
-		{
-			// for (ap_uint<8> k = 0; k < K * K; k++)
-			// {
-	// #pragma HLS LOOP_TRIPCOUNT min=9 max=9
-	#pragma HLS PIPELINE II = 2
-					if (j != m + l * K + k * K * K)
-					{
-						std::cerr<<K<<"FUCK"<<m<<" "<<l<<" "<<k<<" "<<j<<std::endl;
-						exit(0);
-					}
-					if (l==0 && m==0 &&k==13 && i==0 )
-					{
-						// std::cerr<<K<<" "<<tmp<<" "<<j<<" "<<tmp + j << " "<< W[tmp + j]<<std::endl;
-					}
-					W_1[l][m][k][i] = w_to_int8(W[tmp + j]);
+			unsigned m = 0, l = 0;
+			for (unsigned j = 0; j < KK; j++)
+			{
+			#pragma HLS PIPELINE II = 2
+					W_1[l][m][k][i] = w_to_int8(W[tmp1 + j]);
 					m++;
 					if (m == K)
 					{
 						m = 0;
 						l ++;
 					}
-					if (l == K)
-					{
-						l = 0;
-						k ++;
-					}
-					if (k + CHin_batch >= CHin)
-					{
-						break;
-					}
-			// }
+			}
+			tmp1 += KK;
 		}
 		tmp += CHinKK;
 	}
 	tmp = offsetin;
 	unsigned R_inC_in = R_in * C_in;
 loop_In:
-	for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
+	for (unsigned i = 0; i < bCHin && i + CHin_batch < CHin; i++)
 	{
 		int tmp1 = tmp;
-		for (ap_uint<8> j = 0; j < bR_in && j + R_in_batch < R_in; j++)
+		for (unsigned j = 0; j < bR_in && j + R_in_batch < R_in; j++)
 		{
-			for (ap_uint<8> k = 0; k < bC_in; k++)
+			for (unsigned k = 0; k < bC_in && k + C_in_batch < C_in; k++)
 			{
 #pragma HLS PIPELINE II = 1
 				In_1[j][k][i] = in_to_int8(In[tmp1 + k]);
@@ -154,8 +109,8 @@ loop_In:
 	}
 }
 
-void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],BLOCKTYPE Out_1[bR_out][bC_out][bCHout]
-			,BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout], ap_uint<8> CHin_batch, d_type * In, d_type * W, ap_uint<8> CHout_batch)
+void conv_batch(MEDIUMTYPE In_1[bR_in][bC_in][bCHin],MEDIUMTYPE Out_1[bR_out][bC_out][bCHout]
+			,MEDIUMTYPE W_1[KMax][KMax][bCHin][bCHout], ap_uint<8> CHin_batch, d_type * In, d_type * W, ap_uint<8> CHout_batch)
 {
 	if (CHin_batch)
 	{
@@ -185,16 +140,7 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],BLOCKTYPE Out_1[bR_out][bC_o
 							for (unsigned cho = 0; cho < bCHout; cho++)
 							{
 		#pragma HLS UNROLL
-								if (cho==0 && r1==0  && c1==0 && CHout_batch == 0 && to_float32(W_1[kr][kc][chi][cho]) != W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc])
-								{
-									// std::cerr<<kr<<" "<<kc<<" "<<chi<<" "<<cho<<" "<<rr<<" "<<cc<<" "<<std::endl;
-									// std::cerr<<to_float32(Out_1[r1][c1][cho]) <<" "<<to_float32(W_1[kr][kc][chi][cho])<<" "<<to_float32(In_1[rr][cc][chi])<<" "<<W[(cho+CHout_batch) * (CHin * K * K) + chi * (K * K) + kr * (K) + kc]
-									// << " "<< In[chi * C_in * R_in + rr * C_in + cc] << std::endl;
-								}
-								// std::cout<< kr<<" "<<kc<<" "<<r1<<" "<<c1<<" "<<chi<<" "<<cho<<std::endl;
-								// std::cout<<Out_1[r1][c1][cho]<<" "<<W_1[kr][kc][chi][cho]<<" "<<In_1[(r1 << S) + kr][(c1 << S) + kc][chi]<<std::endl;
-								// fflush(stdout);
-								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) / qutw /* >> qul */);
+								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) / qdiv );
 							}
 						}
 					}
@@ -215,10 +161,6 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	Parameter:  CHin|CHout|R|C|K|S
 	*/
 #pragma HLS INTERFACE s_axilite port = return
-// #pragma HLS INTERFACE m_axi depth = 24576 port = In offset = slave //adjust the depth as you need
-// #pragma HLS INTERFACE m_axi depth = 14400 port = Out offset = slave
-// #pragma HLS INTERFACE m_axi depth = 3456 port = W offset = slave
-// #pragma HLS INTERFACE m_axi depth = 256 port = Parameter offset = slave
 #pragma HLS INTERFACE m_axi depth = 10000000 port = In offset = slave //adjust the depth as you need
 #pragma HLS INTERFACE m_axi depth = 10000000 port = Out offset = slave
 #pragma HLS INTERFACE m_axi depth = 10000000 port = W offset = slave
@@ -236,13 +178,13 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	S : 1, 2
 	*/
 
-	BLOCKTYPE In_1[bR_in][bC_in][bCHin];
-	BLOCKTYPE Out_1[bR_out][bC_out][bCHout];
-	BLOCKTYPE In_0[bR_in][bC_in][bCHin];
-	BLOCKTYPE W_0[KMax][KMax][bCHin][bCHout];
-	BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout];
-#pragma HLS RESOURCE variable=W_0 core=RAM_1P_LUTRAM
-#pragma HLS RESOURCE variable=W_1 core=RAM_1P_LUTRAM
+	MEDIUMTYPE In_1[bR_in][bC_in][bCHin];
+	MEDIUMTYPE Out_1[bR_out][bC_out][bCHout];
+	MEDIUMTYPE In_0[bR_in][bC_in][bCHin];
+	MEDIUMTYPE W_0[KMax][KMax][bCHin][bCHout];
+	MEDIUMTYPE W_1[KMax][KMax][bCHin][bCHout];
+// #pragma HLS RESOURCE variable=W_0 core=RAM_1P_LUTRAM
+// #pragma HLS RESOURCE variable=W_1 core=RAM_1P_LUTRAM
 #pragma HLS ARRAY_PARTITION variable = In_1 complete dim=3
 #pragma HLS ARRAY_PARTITION variable = In_0 complete dim=3
 // #pragma HLS ARRAY_PARTITION variable = In_1 complete dim = 2
@@ -307,17 +249,10 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 					{
 #pragma HLS LOOP_TRIPCOUNT max=30
 						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + C_out_batch;
-						for (unsigned c2 = 0; c2 < vbC_out /* && c2 + C_out_batch < C_out */; c2++)
+						for (unsigned c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 						{
 #pragma HLS PIPELINE
-
-							// #pragma HLS UNROLL
-							// Out_1[r2][c2][cho] = 0;
-							Out_1[r2][c2][cho] = in_to_int8(Out[tmp + c2]);
-							// if (c2 + C_out_batch < C_out)
-							// {
-							// 	break;
-							// }
+							Out_1[r2][c2][cho] = out_to_int8(Out[tmp + c2]);
 						}
 					}
 				}
@@ -325,8 +260,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 				for (ap_uint<8> CHin_batch = 0; CHin_batch < CHin + bCHin /* ping pong add 1 */; CHin_batch += bCHin)
 				{
 #pragma HLS LOOP_TRIPCOUNT max=5
-					printf("FUCKYOU! %u %u %u %u\n", (unsigned)CHin_batch, (unsigned)CHout_batch, (unsigned)R_in_batch, (unsigned)C_in_batch);
-// #pragma HLS LOOP_FLATTEN OFF
+					// printf("FUCKYOU! %u %u %u %u\n", (unsigned)CHin_batch, (unsigned)CHout_batch, (unsigned)R_in_batch, (unsigned)C_in_batch);
 
 					unsigned w_offset = CHout_batch * (CHin * K * K) + CHin_batch * (K * K);
 					unsigned in_offset = CHin_batch * (R_in * C_in) + R_in_batch * C_in + C_in_batch;
@@ -355,11 +289,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						for (ap_uint<8> c2 = 0; c2 < vbC_out  && c2 + C_out_batch < C_out ; c2++)
 						{
 #pragma HLS PIPELINE
-							Out[tmp + c2] = to_float32(Out_1[r2][c2][cho]);
-							// if(c2 + C_out_batch < C_out)
-							// {
-							// 	break;
-							// }
+							Out[tmp + c2] = out_to_float32(Out_1[r2][c2][cho]);
 						}
 					}
 				}
