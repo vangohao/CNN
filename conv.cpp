@@ -19,7 +19,7 @@ const unsigned int KMax = 5;
 const unsigned int SMin = 1;
 const float qut = 52.;   //52.
 const float qutw = 3592.;   //3592.
-const int qdiv = 3;  //1966
+const int qdiv = 3;  //3
 const float quto = (qut * qutw / (float) (1 << qdiv));
 const float invquto = 1. / quto;
 // const int quto = 48;
@@ -135,7 +135,7 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 		// #pragma HLS UNROLL factor = 2
 		#pragma HLS PIPELINE
 					loop_CHin:
-						for (unsigned chi = 0; chi < bCHin/*  && chi + (CHin_batch - bCHin) < CHin */; chi++)
+						for (unsigned chi = 0; chi < bCHin  && chi + (CHin_batch - bCHin) < CHin; chi++)
 						{
 		#pragma HLS UNROLL
 						loop_CHout:
@@ -294,7 +294,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (C_out_batch);
 						for (ap_uint<8> c2 = 0; c2 < vbC_out  && c2 + C_out_batch < C_out ; c2++)
 						{
-#pragma HLS PIPELINE
+// #pragma HLS PIPELINE
 							Out[tmp + c2] = out_to_float32(Out_1[r2][c2][cho]);
 						}
 					}
