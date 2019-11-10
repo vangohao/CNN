@@ -272,6 +272,7 @@ int example2()
 	fclose(f_out);
 	int cnt = 0;
 	float norm1 = 0, norm2 = 0;
+	float err = 0;
 	for (int i  = 0; i < Out; i++)
 	{
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
@@ -283,9 +284,10 @@ int example2()
 		}
 		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
 		norm2 += Out_data[i] * Out_data[i];
+		err += abs(Out_data[i] - Output_data[i]);
 	}
 	float rela_res = sqrt(norm1) / sqrt(norm2);
-	printf("Example 2 Passed.  Residual = %f\n", rela_res);
+	printf("Example 2 Passed.  Residual = %f.   err = %f\n", rela_res, err);
 	return 0;
 }
 
@@ -341,6 +343,7 @@ int example3()
 	fclose(f_out);
 	int cnt = 0;
 	float norm1 = 0, norm2 = 0;
+	float err = 0;
 	for (int i  = 0; i < Out; i++)
 	{
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
@@ -352,9 +355,10 @@ int example3()
 		}
 		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
 		norm2 += Out_data[i] * Out_data[i];
+		err += abs(Out_data[i] - Output_data[i]);
 	}
 	float rela_res = sqrt(norm1) / sqrt(norm2);
-	printf("Example 3 Passed.  Residual = %f\n", rela_res);
+	printf("Example 3 Passed.  Residual = %f.   err = %f\n", rela_res, err);
 	return 0;
 }
 
@@ -410,6 +414,7 @@ int example4()
 	fclose(f_out);
 	int cnt = 0;
 	float norm1 = 0, norm2 = 0;
+	float err = 0;
 	for (int i  = 0; i < Out; i++)
 	{
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
@@ -421,9 +426,10 @@ int example4()
 		}
 		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
 		norm2 += Out_data[i] * Out_data[i];
+		err += abs(Out_data[i] - Output_data[i]);
 	}
 	float rela_res = sqrt(norm1) / sqrt(norm2);
-	printf("Example 4 Passed.  Residual = %f\n", rela_res);
+	printf("Example 4 Passed.  Residual = %f.   err = %f\n", rela_res, err);
 	return 0;
 }
 
