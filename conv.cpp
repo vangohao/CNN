@@ -12,7 +12,7 @@
 #endif
 // #define BLOCKTYPE float
 const unsigned int bCHout = 64;
-const unsigned int bCHin = 4;
+const unsigned int bCHin = 3;
 const unsigned int bR_in = 32;
 const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
