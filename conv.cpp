@@ -5,10 +5,10 @@
 #include <stdio.h>
 #ifdef __SYNTHESIS__
 #define BLOCKTYPE ap_fixed<16, 3>
-#define MEDIUMTYPE ap_fixed<16, 3>
+#define OUTTYPE ap_fixed<16, 3>
 #else
 #define BLOCKTYPE ap_fixed<16, 3>
-#define MEDIUMTYPE ap_fixed<16, 3>
+#define OUTTYPE ap_fixed<16, 3>
 #endif
 // #define BLOCKTYPE float
 const unsigned int bCHout = 64;
@@ -21,6 +21,7 @@ const float qut = 1.;
 const float qutw = 1.;
 const int qdiv = 1;
 const float quto = qut * qutw / (float) qdiv;
+const float invquto = 1. / quto;
 const float minpos = 0.0 / qut;
 const float maxneg = -0.0 / qut;
 
@@ -56,7 +57,7 @@ inline OUTTYPE out_to_int16(d_type x)
 
 inline float out_to_float32(OUTTYPE x)
 {
-	float y = x * invquto;
+	float y = float(x) * invquto;
 	return y;
 }
 
@@ -133,7 +134,7 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 		// #pragma HLS UNROLL factor = 2
 		#pragma HLS PIPELINE
 					loop_CHin:
-						for (unsigned chi = 0; chi < bCHin/*  && chi + (CHin_batch - bCHin) < CHin */; chi++)
+						for (unsigned chi = 0; chi < bCHin && chi + (CHin_batch - bCHin) < CHin; chi++)
 						{
 		#pragma HLS UNROLL
 						loop_CHout:
