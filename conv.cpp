@@ -259,7 +259,8 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						for (unsigned c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 						{
 #pragma HLS PIPELINE
-							Out_1[r2][c2][cho] = out_to_int16(Out[tmp + c2]);
+							// Out_1[r2][c2][cho] = out_to_int16(Out[tmp + c2]);
+							Out_1[r2][c2][cho] = 0;
 						}
 					}
 				}
