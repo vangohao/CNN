@@ -275,6 +275,10 @@ int example2()
 	float err = 0;
 	for (int i  = 0; i < Out; i++)
 	{
+		if (i < 50)
+		{
+			printf("%d  %f\n", i, Output_data[i]);
+		}
 		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
 			if (cnt < 20)
@@ -438,7 +442,7 @@ int main()
 	// example0();
 	// example1();
 	example2();
-	example3();
-	example4();
+	// example3();
+	// example4();
 	return 0;
 }

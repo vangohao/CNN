@@ -13,8 +13,8 @@
 // #define BLOCKTYPE float
 const unsigned int bCHout = 64;
 const unsigned int bCHin = 3;
-const unsigned int bR_in = 32;
-const unsigned int bC_in = 32;
+const unsigned int bR_in = 128;
+const unsigned int bC_in = 5;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
 const float qut = 52.;   //52.
@@ -110,7 +110,6 @@ loop_In:
 	}
 }
 
-OUTTYPE tmp_Out;
 void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out][bCHout]
 			,BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout], ap_uint<8> CHin_batch, d_type * In, d_type * W, ap_uint<8> CHout_batch)
 {
@@ -133,7 +132,7 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 					for (unsigned c1 = 0; c1 < vbC_out/* bC_in && cc < bC_in */; c1++, cc +=Stride)
 					{
 		// #pragma HLS UNROLL factor = 2
-		#pragma HLS PIPELINE
+		// #pragma HLS PIPELINE I
 					loop_CHin:
 						for (unsigned chi = 0; chi < bCHin  && chi + (CHin_batch - bCHin) < CHin; chi++)
 						{
@@ -142,9 +141,10 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 							for (unsigned cho = 0; cho < bCHout; cho++)
 							{
 		#pragma HLS UNROLL
-#pragma HLS RESOURCE variable=tmp_Out core=DSP48
-								tmp_Out = W_1[kr][kc][chi][cho] * In_1[rr][cc][chi];
-								Out_1[r1][c1][cho] += ((tmp_Out) >> qdiv );
+								OUTTYPE tmp_Out;
+// #pragma HLS RESOURCE variable=tmp_Out core=DSP48
+								tmp_Out = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) >> qdiv);
+								Out_1[r1][c1][cho] = tmp_Out;
 								// Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) >> qdiv );
 								// Out_1[r1][c1][cho] = tmp_Out;
 							}
@@ -155,7 +155,7 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 		}
 	}
 }
-void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
+void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter/* , int * flag1, int * flag2 */)
 {
 #pragma HLS ALLOCATION instances = fmul limit = 32 operation
 #pragma HLS ALLOCATION instances = fadd limit = 32 operation
@@ -167,6 +167,8 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	Parameter:  CHin|CHout|R|C|K|S
 	*/
 #pragma HLS INTERFACE s_axilite port = return
+// #pragma HLS INTERFACE s_axilite port = flag1
+// #pragma HLS INTERFACE s_axilite port = flag2
 #pragma HLS INTERFACE m_axi depth = 10000000 port = In offset = slave //adjust the depth as you need
 #pragma HLS INTERFACE m_axi depth = 10000000 port = Out offset = slave
 #pragma HLS INTERFACE m_axi depth = 10000000 port = W offset = slave
@@ -258,7 +260,8 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						for (unsigned c2 = 0; c2 < vbC_out && c2 + C_out_batch < C_out; c2++)
 						{
 #pragma HLS PIPELINE
-							Out_1[r2][c2][cho] = out_to_int16(Out[tmp + c2]);
+							// Out_1[r2][c2][cho] = out_to_int16(Out[tmp + c2]);
+							Out_1[r2][c2][cho] = 0;
 						}
 					}
 				}
@@ -287,18 +290,23 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 			loop_AddedOut:
 				for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 				{
-#pragma HLS LOOP_TRIPCOUNT max=32
-					for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
+// #pragma HLS LOOP_TRIPCOUNT max=32
+					for (ap_uint<8> c2 = 0; c2 < vbC_out  && c2 + C_out_batch < C_out ; c2++)
 					{
-#pragma HLS LOOP_TRIPCOUNT max=30
-						unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (C_out_batch);
-						for (ap_uint<8> c2 = 0; c2 < vbC_out  && c2 + C_out_batch < C_out ; c2++)
+// #pragma HLS LOOP_TRIPCOUNT max=30
+						// unsigned tmp = (cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (C_out_batch);
+						for (ap_uint<8> r2 = 0; r2 < vbR_out && r2 + R_out_batch < R_out; r2++)
 						{
 // #pragma HLS PIPELINE
-							Out[tmp + c2] = out_to_float32(Out_1[r2][c2][cho]);
+							Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (C_out_batch) + c2] = out_to_float32(Out_1[r2][c2][cho]);
 						}
 					}
 				}
+// 				if (R_in_batch == 0 && C_in_batch == 0)
+// 				{
+// *flag1 = Out_1[0][0][0];
+// *flag2 = Out_1[0][1][0];
+// 				}
 			}
 		}
 	}
