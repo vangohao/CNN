@@ -4,11 +4,11 @@
 #include <ap_int.h>
 #include <stdio.h>
 #ifdef __SYNTHESIS__
-#define BLOCKTYPE ap_int<8>
-#define MEDIUMTYPE ap_int<8>
+#define BLOCKTYPE ap_fixed<16, 3>
+#define MEDIUMTYPE ap_fixed<16, 3>
 #else
-#define BLOCKTYPE char
-#define MEDIUMTYPE char
+#define BLOCKTYPE ap_fixed<16, 3>
+#define MEDIUMTYPE ap_fixed<16, 3>
 #endif
 // #define BLOCKTYPE float
 const unsigned int bCHout = 64;
@@ -17,11 +17,10 @@ const unsigned int bR_in = 32;
 const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
-const float qut = 52.;
-const float qutw = 3592.;
-const int qdiv = 1966;
+const float qut = 1.;
+const float qutw = 1.;
+const int qdiv = 1;
 const float quto = qut * qutw / (float) qdiv;
-// const int quto = 48;
 const float minpos = 0.0 / qut;
 const float maxneg = -0.0 / qut;
 
