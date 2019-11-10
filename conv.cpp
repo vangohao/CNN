@@ -5,10 +5,12 @@
 #include <stdio.h>
 #ifdef __SYNTHESIS__
 #define BLOCKTYPE ap_fixed<16, 3>
-#define OUTTYPE ap_fixed<16, 3>
+#define WTYPE ap_fixed<16, 0>
+#define OUTTYPE ap_fixed<32, 3>
 #else
 #define BLOCKTYPE ap_fixed<16, 3>
-#define OUTTYPE ap_fixed<16, 3>
+#define WTYPE ap_fixed<16, 0>
+#define OUTTYPE ap_fixed<32, 3>
 #endif
 // #define BLOCKTYPE float
 const unsigned int bCHout = 64;
@@ -34,9 +36,9 @@ ap_uint<1> S;
 ap_uint<2> Stride;
 ap_uint<8> vbC_out, vbR_out;
 
-inline BLOCKTYPE w_to_int8(d_type x)
+inline WTYPE w_to_int8(d_type x)
 {
-	BLOCKTYPE y = 0;
+	WTYPE y = 0;
 	y = x * qutw;
 	return y;
 }
@@ -61,7 +63,7 @@ inline float out_to_float32(OUTTYPE x)
 	return y;
 }
 
-void load_w_in(d_type *W, BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offsetw, d_type *In, BLOCKTYPE In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, unsigned offsetin)
+void load_w_in(d_type *W, WTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offsetw, d_type *In, BLOCKTYPE In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, unsigned offsetin)
 {
 	unsigned tmp = offsetw;
 	unsigned KK = K * K;
@@ -109,9 +111,8 @@ loop_In:
 	}
 }
 
-OUTTYPE tmp_Out;
 void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out][bCHout]
-			,BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout], ap_uint<8> CHin_batch, d_type * In, d_type * W, ap_uint<8> CHout_batch)
+			,WTYPE W_1[KMax][KMax][bCHin][bCHout], ap_uint<8> CHin_batch, d_type * In, d_type * W, ap_uint<8> CHout_batch)
 {
 	if (CHin_batch)
 	{
@@ -141,10 +142,11 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 							for (unsigned cho = 0; cho < bCHout; cho++)
 							{
 		#pragma HLS UNROLL
-#pragma HLS RESOURCE variable=tmp_Out core=DSP48
-								tmp_Out = W_1[kr][kc][chi][cho] * In_1[rr][cc][chi];
-								Out_1[r1][c1][cho] += tmp_Out;
-								// Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) >> qdiv );
+								// OUTTYPE tmp_Out;
+// #pragma HLS RESOURCE variable=tmp_Out core=DSP48
+								// tmp_Out = Out_1[r1][c1][cho] + W_1[kr][kc][chi][cho] * In_1[rr][cc][chi];
+								// Out_1[r1][c1][cho] = tmp_Out;
+								Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[rr][cc][chi];
 								// Out_1[r1][c1][cho] = tmp_Out;
 							}
 						}
@@ -186,8 +188,8 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	BLOCKTYPE In_1[bR_in][bC_in][bCHin];
 	OUTTYPE Out_1[bR_out][bC_out][bCHout];
 	BLOCKTYPE In_0[bR_in][bC_in][bCHin];
-	BLOCKTYPE W_0[KMax][KMax][bCHin][bCHout];
-	BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout];
+	WTYPE W_0[KMax][KMax][bCHin][bCHout];
+	WTYPE W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS RESOURCE variable=W_0 core=RAM_1P_LUTRAM
 // #pragma HLS RESOURCE variable=W_1 core=RAM_1P_LUTRAM
 #pragma HLS ARRAY_PARTITION variable = In_1 complete dim=3
