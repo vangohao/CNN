@@ -2,11 +2,13 @@
 #include <ap_int.h>
 #include <stdio.h>
 #ifdef __SYNTHESIS__
-#define BLOCKTYPE ap_int<8>
-#define OUTTYPE ap_int<16>
+#define BLOCKTYPE ap_fixed<16, 3>
+#define WTYPE ap_fixed<16, 0>
+#define OUTTYPE ap_fixed<32, 3>
 #else
-#define BLOCKTYPE char
-#define OUTTYPE short
+#define BLOCKTYPE ap_fixed<16, 3>
+#define WTYPE ap_fixed<16, 0>
+#define OUTTYPE ap_fixed<32, 3>
 #endif
 const unsigned int bCHout = 64;
 const unsigned int bCHin = 16;
@@ -14,9 +16,9 @@ const unsigned int bR_in = 32;
 const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
-const float qut = 52.;   //52.
-const float qutw = 3592.;   //3592.
-const int qdiv = 3;  //3
+const float qut = 1.;   //52.
+const float qutw = 1.;   //3592.
+const int qdiv = 0;  //3
 const float quto = (qut * qutw / (float) (1 << qdiv));
 const float invquto = 1. / quto;
 // 为方便起见, 在block计算时默认增加Padding, 即bR_out=bR_in, 不过Out_1中只有部分会被使用, 算完后抛弃多余的.
@@ -26,7 +28,7 @@ ap_uint<8> CHin, CHout, R_in, C_in, vbR_out, vbC_out;
 ap_uint<4> K;
 ap_uint<1> S;
 
-inline BLOCKTYPE w_to_int8(d_type x)
+inline WTYPE w_to_int8(d_type x)
 {
 	BLOCKTYPE y = 0;
 	y = x * qutw;
@@ -49,12 +51,12 @@ inline OUTTYPE out_to_int16(d_type x)
 
 inline float out_to_float32(OUTTYPE x)
 {
-	float y = x * invquto;
+	float y = float(x) * invquto;
 	return y;
 }
 
 
-void load_w(d_type *W, BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offset)
+void load_w(d_type *W, WTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offset)
 {
 	loop_W:
 	for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
@@ -91,7 +93,7 @@ loop_In:
 	}
 }
 void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out][bCHout]
-			,BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout], ap_int<8> CHin_batch)
+			,WTYPE W_1[KMax][KMax][bCHin][bCHout], ap_int<8> CHin_batch)
 {
 	if (CHin_batch)
 	{
@@ -119,7 +121,7 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 							{
 		#pragma HLS UNROLL
 								#pragma resource core=DSP48 variable=tmp
-								OUTTYPE tmp = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]) >> qdiv);
+								OUTTYPE tmp = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]));
 								Out_1[r1][c1][cho] = tmp;
 							}
 						}
@@ -165,8 +167,8 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	BLOCKTYPE In_1[bR_in][bC_in][bCHin];
 	OUTTYPE Out_1[bR_out][bC_out][bCHout];
 	BLOCKTYPE In_0[bR_in][bC_in][bCHin];
-	BLOCKTYPE W_0[KMax][KMax][bCHin][bCHout];
-	BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout];
+	WTYPE W_0[KMax][KMax][bCHin][bCHout];
+	WTYPE W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS RESOURCE variable=Out_1 core=RAM_1P_LUTRAM
 // #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
 #pragma HLS ARRAY_PARTITION variable = Out_1 complete dim = 3
