@@ -118,7 +118,9 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 							for (ap_uint<8> cho = 0; cho < bCHout; cho++)
 							{
 		#pragma HLS UNROLL
-								Out_1[r1][c1][cho] += W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi];
+								#pragma resource core=DSP48 variable=tmp
+								OUTTYPE tmp = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]) >> qdiv);
+								Out_1[r1][c1][cho] = tmp;
 							}
 						}
 					}
@@ -167,10 +169,10 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS RESOURCE variable=Out_1 core=RAM_1P_LUTRAM
 // #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
-#pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 32 dim = 3
+#pragma HLS ARRAY_PARTITION variable = Out_1 complete dim = 3
 // #pragma HLS ARRAY_PARTITION variable = Out_1 complete
-#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor= 32 dim=4
-#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor= 32 dim=4
+#pragma HLS ARRAY_PARTITION variable = W_1 complete dim=4
+#pragma HLS ARRAY_PARTITION variable = W_0 complete dim=4
 	// #pragma HLS ARRAY_PARTITION variable=W_1 complete
 
 	/*

@@ -3,9 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <memory.h>
+#include <math.h>
+#define CNN cnn
 void cnn_test(d_type* In, d_type* Out, d_type* W, int *Parameter)
 {
 
+	float MAXFL = 0, MINFL=0;
 	/*
 	In  : Input feature map, CHin*R*C
 	Out : Output feature map, CHout*Rout*Cout
@@ -70,12 +73,21 @@ void cnn_test(d_type* In, d_type* Out, d_type* W, int *Parameter)
 							Out[cho * R_out * C_out + r1 * C_out + c1] 
 								+= W[cho * CHin * K * K + chi * K * K + kr * K + kc] 
 									* In[chi * R_in * C_in + (S * r1 + kr) * C_in + (S * c1 + kc)];
+							if (Out[cho * R_out * C_out + r1 * C_out + c1] > MAXFL)
+							{
+								MAXFL = Out[cho * R_out * C_out + r1 * C_out + c1];
+							}
+							if (Out[cho * R_out * C_out + r1 * C_out + c1] < MINFL)
+							{
+								MINFL = Out[cho * R_out * C_out + r1 * C_out + c1];
+							}
 						}
 					}
 				}
 			}
 		}
 	}
+	printf("MAXFL: %lf  MINFL: %lf\n", MAXFL, MINFL);
 	
 }
 
@@ -112,7 +124,7 @@ int example0()
 	}
 	fclose(f_weight);
 
-	cnn(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
 	FILE * f_out;
@@ -139,26 +151,27 @@ int example0()
 	delete Out_data;
 	delete Output_data;
 	delete Weight_data;
-// 	return 0;
-// }
+	return 0;
+}
 
-// int example1()
-// {
-	CHin = 32;
-	CHout = 64;
-	R_in = 128;
-	C_in = 128;
-	K = 5;
-	S = 2;
+int example1()
+{
+	int CHin = 32;
+	int CHout = 64;
+	int R_in = 128;
+	int C_in = 128;
+	int K = 5;
+	int S = 2;
 	int R_out = ((R_in - K) / S) + 1;
 	int C_out = ((C_in - K) / S) + 1;
-	In = CHin * R_in * C_in;
-	weight = CHout * CHin * K * K;
-	Out = CHout * R_out * C_out;
-	In_data = (d_type*)malloc(In * sizeof(d_type));
-	Out_data = (d_type*)malloc(Out * sizeof(d_type));
-	Output_data = (d_type*)malloc(Out * sizeof(d_type));
-	Weight_data = (d_type*)malloc(weight * sizeof(d_type));
+	int In = CHin * R_in * C_in;
+	int weight = CHout * CHin * K * K;
+	int Out = CHout * R_out * C_out;
+	d_type *In_data = (d_type*)malloc(In * sizeof(d_type));
+	d_type *Out_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Output_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Weight_data = (d_type*)malloc(weight * sizeof(d_type));
+	int parameter[6];
 	parameter[0] = CHin;
 	parameter[1] = CHout;
 	parameter[2] = R_in;
@@ -167,14 +180,14 @@ int example0()
 	parameter[5] = S;
 
 	printf("Begin sample_1.\n");
-	f_in = fopen("../../../../dat/sample_1_input.dat", "r");
+	FILE *f_in = fopen("../../../../dat/sample_1_input.dat", "r");
 	for (int i = 0; i < In; i++)
 	{
 		fscanf(f_in, "%f", &In_data[i]);
 	}
 	fclose(f_in);
 	printf("Finish read input.\n");
-	f_weight = fopen("../../../../dat/sample_1_weight.dat", "r");
+	FILE * f_weight = fopen("../../../../dat/sample_1_weight.dat", "r");
 	for (int i = 0; i < weight; i++)
 	{
 		fscanf(f_weight, "%f", &Weight_data[i]);
@@ -182,19 +195,19 @@ int example0()
 	fclose(f_weight);
 	printf("Finish read weight.\n");
 
-	cnn(In_data, Output_data, Weight_data, parameter);
-	// cnn_test(In_data, Output_data, Weight_data, parameter);
+	CNN(In_data, Output_data, Weight_data, parameter);
 	printf("CNN finish.\n");
 
-	f_out = fopen("../../../../dat/sample_1_out.dat", "r");
+	FILE * f_out = fopen("../../../../dat/sample_1_out.dat", "r");
 	for (int i = 0; i < Out; i++)
 	{
 		fscanf(f_out, "%f", &Out_data[i]);
 	}
 	fclose(f_out);
+	int cnt = 0;
 	for (int i  = 0; i < Out; i++)
 	{
-		if (Out_data[i] - Output_data[i] > 1e-4 || Out_data[i] - Output_data[i] < -1e-4)
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
 		{
 			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
 				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
@@ -207,7 +220,229 @@ int example0()
 	return 0;
 }
 
+int example2()
+{
+	int CHin = 32;
+	int CHout = 64;
+	int R_in = 128;
+	int C_in = 128;
+	int K = 5;
+	int S = 2;
+	int R_out = ((R_in - K) / S) + 1;
+	int C_out = ((C_in - K) / S) + 1;
+	int In = CHin * R_in * C_in;
+	int weight = CHout * CHin * K * K;
+	int Out = CHout * R_out * C_out;
+	d_type *In_data = (d_type*)malloc(In * sizeof(d_type));
+	d_type *Out_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Output_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Weight_data = (d_type*)malloc(weight * sizeof(d_type));
+	int parameter[6];
+	parameter[0] = CHin;
+	parameter[1] = CHout;
+	parameter[2] = R_in;
+	parameter[3] = C_in;
+	parameter[4] = K;
+	parameter[5] = S;
+
+	printf("Begin sample_2.\n");
+	FILE *f_in = fopen("../../../../dat/sample_input.dat", "r");
+	for (int i = 0; i < In; i++)
+	{
+		fscanf(f_in, "%f", &In_data[i]);
+	}
+	fclose(f_in);
+	printf("Finish read input.\n");
+	FILE * f_weight = fopen("../../../../dat/sample_weight_25.dat", "r");
+	for (int i = 0; i < weight; i++)
+	{
+		fscanf(f_weight, "%f", &Weight_data[i]);
+	}
+	fclose(f_weight);
+	printf("Finish read weight.\n");
+
+	CNN(In_data, Output_data, Weight_data, parameter);
+	printf("CNN finish.\n");
+
+	FILE * f_out = fopen("../../../../dat/sample_out_25.dat", "r");
+	for (int i = 0; i < Out; i++)
+	{
+		fscanf(f_out, "%f", &Out_data[i]);
+	}
+	fclose(f_out);
+	int cnt = 0;
+	float norm1 = 0, norm2 = 0;
+	float err = 0;
+	for (int i  = 0; i < Out; i++)
+	{
+		if (i < 50)
+		{
+			printf("%d  %f\n", i, Output_data[i]);
+		}
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
+		{
+			if (cnt < 20)
+			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
+				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
+			cnt ++;
+		}
+		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
+		norm2 += Out_data[i] * Out_data[i];
+		err += abs(Out_data[i] - Output_data[i]);
+	}
+	float rela_res = sqrt(norm1) / sqrt(norm2);
+	printf("Example 2 Passed.  Residual = %f.   err = %f\n", rela_res, err);
+	return 0;
+}
+
+int example3()
+{
+	int CHin = 32;
+	int CHout = 64;
+	int R_in = 128;
+	int C_in = 128;
+	int K = 5;
+	int S = 2;
+	int R_out = ((R_in - K) / S) + 1;
+	int C_out = ((C_in - K) / S) + 1;
+	int In = CHin * R_in * C_in;
+	int weight = CHout * CHin * K * K;
+	int Out = CHout * R_out * C_out;
+	d_type *In_data = (d_type*)malloc(In * sizeof(d_type));
+	d_type *Out_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Output_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Weight_data = (d_type*)malloc(weight * sizeof(d_type));
+	int parameter[6];
+	parameter[0] = CHin;
+	parameter[1] = CHout;
+	parameter[2] = R_in;
+	parameter[3] = C_in;
+	parameter[4] = K;
+	parameter[5] = S;
+
+	printf("Begin sample_3.\n");
+	FILE *f_in = fopen("../../../../dat/sample_input.dat", "r");
+	for (int i = 0; i < In; i++)
+	{
+		fscanf(f_in, "%f", &In_data[i]);
+	}
+	fclose(f_in);
+	printf("Finish read input.\n");
+	FILE * f_weight = fopen("../../../../dat/sample_weight_50.dat", "r");
+	for (int i = 0; i < weight; i++)
+	{
+		fscanf(f_weight, "%f", &Weight_data[i]);
+	}
+	fclose(f_weight);
+	printf("Finish read weight.\n");
+
+	CNN(In_data, Output_data, Weight_data, parameter);
+	printf("CNN finish.\n");
+
+	FILE * f_out = fopen("../../../../dat/sample_out_50.dat", "r");
+	for (int i = 0; i < Out; i++)
+	{
+		fscanf(f_out, "%f", &Out_data[i]);
+	}
+	fclose(f_out);
+	int cnt = 0;
+	float norm1 = 0, norm2 = 0;
+	float err = 0;
+	for (int i  = 0; i < Out; i++)
+	{
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
+		{
+			if (cnt < 20)
+			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
+				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
+			cnt ++;
+		}
+		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
+		norm2 += Out_data[i] * Out_data[i];
+		err += abs(Out_data[i] - Output_data[i]);
+	}
+	float rela_res = sqrt(norm1) / sqrt(norm2);
+	printf("Example 3 Passed.  Residual = %f.   err = %f\n", rela_res, err);
+	return 0;
+}
+
+int example4()
+{
+	int CHin = 32;
+	int CHout = 64;
+	int R_in = 128;
+	int C_in = 128;
+	int K = 5;
+	int S = 2;
+	int R_out = ((R_in - K) / S) + 1;
+	int C_out = ((C_in - K) / S) + 1;
+	int In = CHin * R_in * C_in;
+	int weight = CHout * CHin * K * K;
+	int Out = CHout * R_out * C_out;
+	d_type *In_data = (d_type*)malloc(In * sizeof(d_type));
+	d_type *Out_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Output_data = (d_type*)malloc(Out * sizeof(d_type));
+	d_type *Weight_data = (d_type*)malloc(weight * sizeof(d_type));
+	int parameter[6];
+	parameter[0] = CHin;
+	parameter[1] = CHout;
+	parameter[2] = R_in;
+	parameter[3] = C_in;
+	parameter[4] = K;
+	parameter[5] = S;
+
+	printf("Begin sample_4.\n");
+	FILE *f_in = fopen("../../../../dat/sample_input.dat", "r");
+	for (int i = 0; i < In; i++)
+	{
+		fscanf(f_in, "%f", &In_data[i]);
+	}
+	fclose(f_in);
+	printf("Finish read input.\n");
+	FILE * f_weight = fopen("../../../../dat/sample_weight_75.dat", "r");
+	for (int i = 0; i < weight; i++)
+	{
+		fscanf(f_weight, "%f", &Weight_data[i]);
+	}
+	fclose(f_weight);
+	printf("Finish read weight.\n");
+
+	CNN(In_data, Output_data, Weight_data, parameter);
+	printf("CNN finish.\n");
+
+	FILE * f_out = fopen("../../../../dat/sample_out_75.dat", "r");
+	for (int i = 0; i < Out; i++)
+	{
+		fscanf(f_out, "%f", &Out_data[i]);
+	}
+	fclose(f_out);
+	int cnt = 0;
+	float norm1 = 0, norm2 = 0;
+	float err = 0;
+	for (int i  = 0; i < Out; i++)
+	{
+		if (Out_data[i] - Output_data[i] > 1e-1 || Out_data[i] - Output_data[i] < -1e-1)
+		{
+			if (cnt < 20)
+			printf("Error, No. %d, output = %.10f, real output = %.10f, difference = %.10f\n",
+				 i, Output_data[i], Out_data[i], Output_data[i] - Out_data[i]);
+			cnt ++;
+		}
+		norm1 += (Out_data[i] - Output_data[i]) * (Out_data[i] - Output_data[i]);
+		norm2 += Out_data[i] * Out_data[i];
+		err += abs(Out_data[i] - Output_data[i]);
+	}
+	float rela_res = sqrt(norm1) / sqrt(norm2);
+	printf("Example 4 Passed.  Residual = %f.   err = %f\n", rela_res, err);
+	return 0;
+}
+
 int main()
 {
-	return example0();
+	// example0();
+	// example1();
+	example2();
+	example3();
+	example4();
+	return 0;
 }
