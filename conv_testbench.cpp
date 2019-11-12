@@ -442,7 +442,7 @@ int main()
 	// example0();
 	// example1();
 	example2();
-	// example3();
-	// example4();
+	example3();
+	example4();
 	return 0;
 }

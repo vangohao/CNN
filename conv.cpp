@@ -13,8 +13,8 @@
 // #define BLOCKTYPE float
 const unsigned int bCHout = 64;
 const unsigned int bCHin = 3;
-const unsigned int bR_in = 128;
-const unsigned int bC_in = 5;
+const unsigned int bR_in = 32;
+const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
 const float qut = 52.;   //52.
@@ -31,8 +31,8 @@ const unsigned int bR_out = bR_in;
 const unsigned int bC_out = bC_in;
 ap_uint<8> CHin, CHout, R_in, C_in;
 ap_uint<4> K;
-ap_uint<1> S;
-ap_uint<2> Stride;
+// ap_uint<1> S;
+int Stride;
 ap_uint<8> vbC_out, vbR_out;
 
 inline BLOCKTYPE w_to_int8(d_type x)
@@ -123,33 +123,29 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 			for (ap_uint<4> kc = 0; kc < K; kc++)
 			{
 		#pragma HLS LOOP_TRIPCOUNT min = 2 max = 5
-			loop_R1:
 				ap_uint<8> rr = kr;
+			loop_R1:
 				for (unsigned r1 = 0; r1 < vbR_out/* bR_in && rr < bR_in */; r1++, rr+=Stride)
 				{
-				loop_C1:
 					ap_uint<8> cc = kc;
-					for (unsigned c1 = 0; c1 < vbC_out/* bC_in && cc < bC_in */; c1++, cc +=Stride)
+				loop_C1:
+					for (unsigned c1 = 0; c1 < vbC_out/* bC_in && cc < bC_in */; c1++, cc+=Stride)
 					{
-		// #pragma HLS UNROLL factor = 2
-		// #pragma HLS PIPELINE I
-					loop_CHin:
-						for (unsigned chi = 0; chi < bCHin  && chi + (CHin_batch - bCHin) < CHin; chi++)
+		#pragma HLS PIPELINE
+					loop_CHout:
+						for (unsigned cho = 0; cho < bCHout; cho++)
 						{
 		#pragma HLS UNROLL
-						loop_CHout:
-							for (unsigned cho = 0; cho < bCHout; cho++)
+						loop_CHin:
+							for (unsigned chi = 0; chi < bCHin  && chi + (CHin_batch - bCHin) < CHin; chi++)
 							{
 		#pragma HLS UNROLL
-								OUTTYPE tmp_Out;
-// #pragma HLS RESOURCE variable=tmp_Out core=DSP48
-								tmp_Out = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) >> qdiv);
-								Out_1[r1][c1][cho] = tmp_Out;
-								// Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[rr][cc][chi]) >> qdiv );
-								// Out_1[r1][c1][cho] = tmp_Out;
+								Out_1[r1][c1][cho] += ((W_1[kr][kc][chi][cho] * In_1[kr + Stride * r1][kc + Stride * c1][chi]) >> qdiv );
 							}
 						}
+						// cc += Stride;
 					}
+					// rr += Stride;
 				}
 			}
 		}
@@ -224,21 +220,21 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter/* , int * flag1, int
 	C_in = parameter[3];
 	K = parameter[4];
 	Stride = parameter[5];
-	S = Stride & 1;
-	S = ~S;
+	// S = Stride & 1;
+	// S = ~S;
 
 	if (R_in - K < 0 || C_in - K < 0)
 	{
 		return;
 	}
 
-	ap_uint<8> R_out = (((ap_uint<8>)(R_in - K)) >> S) + 1;
-	ap_uint<8> C_out = (((ap_uint<8>)(C_in - K)) >> S) + 1;
+	ap_uint<8> R_out = (((ap_uint<8>)(R_in - K)) / Stride) + 1;
+	ap_uint<8> C_out = (((ap_uint<8>)(C_in - K)) / Stride) + 1;
 
-	vbR_out = (((ap_uint<8>)(bR_in - K)) >> S) + 1;
-	vbC_out = (((ap_uint<8>)(bC_in - K)) >> S) + 1;
-	ap_uint<8> vbR_in = vbR_out << S;
-	ap_uint<8> vbC_in = vbC_out << S;
+	vbR_out = (((ap_uint<8>)(bR_in - K)) / Stride) + 1;
+	vbC_out = (((ap_uint<8>)(bC_in - K)) / Stride) + 1;
+	ap_uint<8> vbR_in = vbR_out * Stride;
+	ap_uint<8> vbC_in = vbC_out * Stride;
 
 	for (ap_uint<8> R_in_batch = 0, R_out_batch = 0; R_out_batch < R_out; (R_in_batch += vbR_in), (R_out_batch += vbR_out))
 	{
