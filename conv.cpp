@@ -116,13 +116,19 @@ void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out
 						{
 		// #pragma HLS UNROLL factor = 2
 		#pragma HLS PIPELINE
-						loop_CHout:
-							for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+							if (In_1[(r1 << S) + kr][(c1 << S) + kc][chi])
 							{
-		#pragma HLS UNROLL
-								#pragma resource core=DSP48 variable=tmp
-								OUTTYPE tmp = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]));
-								Out_1[r1][c1][cho] = tmp;
+							loop_CHout:
+								for (ap_uint<8> cho = 0; cho < bCHout; cho++)
+								{
+			#pragma HLS UNROLL
+									if (W_1[kr][kc][chi][cho])
+									{
+										#pragma resource core=DSP48 variable=tmp
+										OUTTYPE tmp = Out_1[r1][c1][cho] + ((W_1[kr][kc][chi][cho] * In_1[(r1 << S) + kr][(c1 << S) + kc][chi]));
+										Out_1[r1][c1][cho] = tmp;
+									}
+								}
 							}
 						}
 					}
