@@ -1,20 +1,60 @@
 #include "conv.h"
 #include <ap_int.h>
 #include <stdio.h>
-const unsigned int bCHout = 32;
+#ifdef __SYNTHESIS__
+#define BLOCKTYPE ap_int<8>
+#define OUTTYPE ap_int<16>
+#else
+#define BLOCKTYPE char
+#define OUTTYPE short
+#endif
+const unsigned int bCHout = 64;
 const unsigned int bCHin = 16;
 const unsigned int bR_in = 32;
 const unsigned int bC_in = 32;
 const unsigned int KMax = 5;
 const unsigned int SMin = 1;
-
+const float qut = 52.;   //52.
+const float qutw = 3592.;   //3592.
+const int qdiv = 3;  //3
+const float quto = (qut * qutw / (float) (1 << qdiv));
+const float invquto = 1. / quto;
 // 为方便起见, 在block计算时默认增加Padding, 即bR_out=bR_in, 不过Out_1中只有部分会被使用, 算完后抛弃多余的.
 const unsigned int bR_out = bR_in;
 const unsigned int bC_out = bC_in;
-ap_uint<8> CHin, CHout, R_in, C_in;
+ap_uint<8> CHin, CHout, R_in, C_in, vbR_out, vbC_out;
 ap_uint<4> K;
 ap_uint<1> S;
-void load_w(d_type *W, d_type W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offset)
+
+inline BLOCKTYPE w_to_int8(d_type x)
+{
+	BLOCKTYPE y = 0;
+	y = x * qutw;
+	return y;
+}
+
+inline BLOCKTYPE in_to_int8(d_type x)
+{
+	BLOCKTYPE y = 0;
+	y = x * qut;
+	return y;
+}
+
+inline OUTTYPE out_to_int16(d_type x)
+{
+	BLOCKTYPE y = 0;
+	y = x * (quto);
+	return y;
+}
+
+inline float out_to_float32(OUTTYPE x)
+{
+	float y = x * invquto;
+	return y;
+}
+
+
+void load_w(d_type *W, BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_batch,ap_uint<8> CHin_batch, unsigned offset)
 {
 	loop_W:
 	for (ap_uint<8> i = 0; i < bCHout && i + CHout_batch < CHout; i++)
@@ -29,13 +69,13 @@ void load_w(d_type *W, d_type W_1[KMax][KMax][bCHin][bCHout],ap_uint<8> CHout_ba
 	#pragma HLS LOOP_TRIPCOUNT min=3 max=3
 	#pragma HLS PIPELINE
 
-					W_1[k][l][j][i] = W[offset + i * (CHin * K * K) + j * K * K + k * K + l];
+					W_1[k][l][j][i] = w_to_int8(W[offset + i * (CHin * K * K) + j * K * K + k * K + l]);
 				}
 			}
 		}
 	}
 }
-void load_in(d_type *In, d_type In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, ap_uint<8>CHin_batch, unsigned offset)
+void load_in(d_type *In, BLOCKTYPE In_1[bR_in][bC_in][bCHin],ap_uint<8> R_in_batch, ap_uint<8>C_in_batch, ap_uint<8>CHin_batch, unsigned offset)
 {
 loop_In:
 	for (ap_uint<8> j = 0; j < bR_in && j + R_in_batch < R_in; j++)
@@ -45,13 +85,13 @@ loop_In:
 			for (ap_uint<8> i = 0; i < bCHin && i + CHin_batch < CHin; i++)
 			{
 #pragma HLS PIPELINE
-				In_1[j][k][i] = In[offset + i * (R_in * C_in) + j * C_in + k];
+				In_1[j][k][i] = in_to_int8(In[offset + i * (R_in * C_in) + j * C_in + k]);
 			}
 		}
 	}
 }
-void conv_batch(d_type In_1[bR_in][bC_in][bCHin],d_type Out_1[bR_out][bC_out][bCHout]
-			,d_type W_1[KMax][KMax][bCHin][bCHout], ap_int<8> CHin_batch)
+void conv_batch(BLOCKTYPE In_1[bR_in][bC_in][bCHin],OUTTYPE Out_1[bR_out][bC_out][bCHout]
+			,BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout], ap_int<8> CHin_batch)
 {
 	if (CHin_batch)
 	{
@@ -67,10 +107,10 @@ void conv_batch(d_type In_1[bR_in][bC_in][bCHin],d_type Out_1[bR_out][bC_out][bC
 				for (ap_uint<8> chi = 0; chi < bCHin && chi + (CHin_batch - bCHin) < CHin; chi++)
 				{
 				loop_R1:
-					for (ap_uint<8> r1 = 0; r1 < bR_in; r1++)
+					for (ap_uint<8> r1 = 0; r1 < vbR_out; r1++)
 					{
 					loop_C1:
-						for (ap_uint<8> c1 = 0; c1 < bC_in; c1++)
+						for (ap_uint<8> c1 = 0; c1 < vbC_out; c1++)
 						{
 		// #pragma HLS UNROLL factor = 2
 		#pragma HLS PIPELINE
@@ -120,11 +160,11 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	S : 1, 2
 	*/
 
-	d_type In_1[bR_in][bC_in][bCHin];
-	d_type Out_1[bR_out][bC_out][bCHout];
-	d_type In_0[bR_in][bC_in][bCHin];
-	d_type W_0[KMax][KMax][bCHin][bCHout];
-	d_type W_1[KMax][KMax][bCHin][bCHout];
+	BLOCKTYPE In_1[bR_in][bC_in][bCHin];
+	OUTTYPE Out_1[bR_out][bC_out][bCHout];
+	BLOCKTYPE In_0[bR_in][bC_in][bCHin];
+	BLOCKTYPE W_0[KMax][KMax][bCHin][bCHout];
+	BLOCKTYPE W_1[KMax][KMax][bCHin][bCHout];
 // #pragma HLS RESOURCE variable=Out_1 core=RAM_1P_LUTRAM
 // #pragma HLS ARRAY_PARTITION variable = In_1 cyclic factor = 4 dim = 2
 #pragma HLS ARRAY_PARTITION variable = Out_1 cyclic factor = 32 dim = 3
@@ -158,8 +198,8 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 	ap_uint<8> R_out = (((ap_uint<8>)(R_in - K)) >> S) + 1;
 	ap_uint<8> C_out = (((ap_uint<8>)(C_in - K)) >> S) + 1;
 
-	ap_uint<8> vbR_out = (((ap_uint<8>)(bR_in - K)) >> S) + 1;
-	ap_uint<8> vbC_out = (((ap_uint<8>)(bC_in - K)) >> S) + 1;
+	vbR_out = (((ap_uint<8>)(bR_in - K)) >> S) + 1;
+	vbC_out = (((ap_uint<8>)(bC_in - K)) >> S) + 1;
 	ap_uint<8> vbR_in = vbR_out << S;
 	ap_uint<8> vbC_in = vbC_out << S;
 
@@ -185,7 +225,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 
 							// #pragma HLS UNROLL
 							// Out_1[r2][c2][cho] = 0;
-							Out_1[r2][c2][cho] = Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)];
+							Out_1[r2][c2][cho] = out_to_int16(Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)]);
 						}
 					}
 				}
@@ -224,7 +264,7 @@ void cnn(d_type *In, d_type *Out, d_type *W, int *Parameter)
 						for (ap_uint<8> cho = 0; cho < bCHout && cho + CHout_batch < CHout; cho++)
 						{
 #pragma HLS PIPELINE
-							Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)] = Out_1[r2][c2][cho];
+							Out[(cho + CHout_batch) * R_out * C_out + (r2 + R_out_batch) * C_out + (c2 + C_out_batch)] = out_to_float32(Out_1[r2][c2][cho]);
 						}
 					}
 				}
