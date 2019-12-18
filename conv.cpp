@@ -285,9 +285,9 @@ void conv_batch(BLOCKTYPE In_0[R_out+2][C_out+2][CHin],OUTTYPE Out[R_out][C_out]
 
 void MaxPoolAndRelu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out)
 {
-	for (int r1 = 0; r1 < bR_out; r1++)
+	for (int r1 = 0; r1 < (bR_out / 2); r1++)
 	{
-		for (int c1 = 0; c1 < bC_out; c1++)
+		for (int c1 = 0; c1 < (bC_out / 2); c1++)
 		{
 			#pragma HLS pipeline
 			for (int cho = 0; cho < CHout; cho++)
