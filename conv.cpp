@@ -356,11 +356,12 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 {
 #pragma HLS INTERFACE s_axilite port = return
+#pragma HLS INTERFACE s_axilite port = dest
 #pragma HLS INTERFACE m_axi depth = 100000 port = In offset = slave
 #pragma HLS INTERFACE m_axi depth = 100000 port = W offset = slave
 #pragma HLS INTERFACE m_axi depth = 100000 port = B offset = slave
 #pragma HLS INTERFACE m_axi depth = 100000 port = FC offset = slave
-#pragma HLS INTERFACE m_axi depth = 256 port = dest offset = slave
+// #pragma HLS INTERFACE m_axi depth = 256 port = dest offset = slave
 
 	// BLOCKTYPE In_0[R_out][C_out][CHin];
 	BLOCKTYPE Raw[34][34][3];
