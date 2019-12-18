@@ -6,9 +6,12 @@
 #define WTYPE ap_fixed<16, 0>
 #define OUTTYPE ap_fixed<32, 3>
 #else
-#define BLOCKTYPE ap_fixed<16, 3>
-#define WTYPE ap_fixed<16, 0>
-#define OUTTYPE ap_fixed<32, 3>
+#define BLOCKTYPE float
+#define WTYPE float
+#define OUTTYPE float
+// #define BLOCKTYPE ap_fixed<16, 3>
+// #define WTYPE ap_fixed<16, 0>
+// #define OUTTYPE ap_fixed<32, 3>
 #endif
 const unsigned int CHout = 32;
 const unsigned int CHin = 32;
@@ -88,8 +91,56 @@ loop_In:
 		}
 	}
 }
+#ifdef DEBUG
+	// debug check spread_sheet
+	int ss = 0;
+	int errc = 0;
+	void raiseerror()
+	{
+		errc ++;
+		if (errc == 10)
+		{
+			int * pppp=0;
+			*pppp = 0;
+		}
+	}
+#endif
 void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out+2][C_out+2][CHin], int bR_out, int bC_out, int bCHin)
 {
+	#ifdef DEBUG
+	// debug check spread_sheet
+		ss ++;
+		FILE * f;
+		char filename[50] ="../../../../../cheet/0.dat";
+		filename[21] = ss + '0';
+		f = fopen(filename, "r");
+		int aa,bb,cc;
+		fscanf(f, "%d %d %d", &aa, &bb, &cc);
+		if(aa != bCHin || bb!=bR_out || cc!=bC_out) 
+		{
+			printf("shape failed. %d\n", ss);
+			raiseerror();
+		}
+		for(int i = 0; i< aa; i++)
+		{
+			for(int j = 0; j < bb; j++)
+			{
+				for(int k = 0; k < cc; k++)
+				{
+					float realvalue;
+					fscanf(f, "%f", &realvalue);
+					if (fabs(realvalue - Out[j][k][i]) > 1e-4)
+					{
+						printf("check failed. %d, %d %d %d, %f, %f\n", ss, i, j, k, realvalue, Out[j][k][i]);
+						raiseerror();
+					}
+				}
+			}
+		}
+
+
+
+	#endif
 	for(int r = 0; r < bR_out; r++)
 	{
 		for(int c = 0; c < bC_out; c++)
@@ -158,7 +209,7 @@ void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CH
 								{
 									#pragma HLS UNROLL
 									OUTTYPE tmp = tmpOut[i][j][cho] + ((W_0[kr][kc][chi][cho] * In_0[r1 + i + kr][c1 + j + kc][chi]));
-									Out[i][j][cho] = tmp;
+									tmpOut[i][j][cho] = tmp;
 								}
 							}
 						}
@@ -169,7 +220,7 @@ void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CH
 			loop_MaxPoolReLU:
 			for (int o = 0; o < 16; o ++)
 			{
-				Out[r1][c1][o] = 0;
+				Out[r1 >> 1][c1 >> 1][o] = 0;
 				// #pragma HLS UNROLL
 				for (int i = 0; i < 2; i++)
 				{
@@ -177,8 +228,8 @@ void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CH
 					for (int j = 0; j < 2; j++)
 					{
 						// #pragma HLS UNROLL
-						if (Out[r1][c1][o] < tmpOut[i][j][o])
-							Out[r1][c1][o] = tmpOut[i][j][o];
+						if (Out[r1 >> 1][c1 >> 1][o] < tmpOut[i][j][o])
+							Out[r1 >> 1][c1 >> 1][o] = tmpOut[i][j][o];
 					}
 				}
 			}
