@@ -5,7 +5,7 @@ add_files conv.h
 add_files conv_testbench.cpp -tb
 open_solution "solution1"
 set_part {xc7z020clg400-1} -tool vivado
-create_clock -period 6 -name default
+create_clock -period 7 -name default
 
 # source "./solution1/directives.tcl"
 #csim_design
