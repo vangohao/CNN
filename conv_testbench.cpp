@@ -20,7 +20,7 @@ int testimage(int index)
 	Mat src_img = imread(imagename, IMREAD_COLOR);
 	int height = src_img.rows;
 	int width = src_img.cols;
-	cout << "height: " << height << " " << "width: " << width << endl;
+	// cout << "height: " << height << " " << "width: " << width << endl;
 	unsigned char *Pin = new unsigned char[height * width * 3];
 	for(int i = 0; i < height; i++){
 		const uchar *img_data = src_img.ptr<uchar>(i);
@@ -64,7 +64,6 @@ int testimage(int index)
 	d_type *Bias_data = (d_type*)malloc(bias * sizeof(d_type));
 	int fc = 512 * 10;
 	d_type *FC_data = (d_type*)malloc(fc * sizeof(d_type));
-	system("pwd");
 	int i;
 	FILE * f;
 	char filename[50] = "../../../../../weights/conv0.weight.dat";
@@ -97,12 +96,12 @@ int testimage(int index)
 	}
 
 	f = fopen("../../../../../weights/fc1.weight.dat", "r");
-	float x;
-	i = 0;
-	while(fscanf(f, "%f", &x) != EOF)
+	for(int i = 0; i < 10; i++)
+	for(int j = 0; j < 512; j++)
 	{
-		FC_data[i] = x;
-		i ++;
+		float x;
+		fscanf(f,"%f", &x);
+		FC_data[j * 10 + i] = x;
 	}
 	fclose(f);
 
@@ -116,10 +115,10 @@ int main()
 	int total = 0;
 	for(int index = 0; index < 500; index++)
 	{
-		total += testiamge(index);
+		total += testimage(index);
 	}
 	printf("Finished. %d %f\n", total, (float)(total) / 500.0);
 	#else 
-	testimage(0);
+	cout<<testimage(0)<<endl;
 	#endif
 }

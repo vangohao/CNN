@@ -2,16 +2,16 @@
 #include <ap_int.h>
 #include <stdio.h>
 #ifdef __SYNTHESIS__
-#define BLOCKTYPE ap_fixed<16, 3>
-#define WTYPE ap_fixed<16, 0>
-#define OUTTYPE ap_fixed<32, 3>
+#define BLOCKTYPE ap_fixed<16, 5>
+#define WTYPE ap_fixed<16, 3>
+#define OUTTYPE ap_fixed<32, 10>
 #else
-#define BLOCKTYPE float
-#define WTYPE float
-#define OUTTYPE float
-// #define BLOCKTYPE ap_fixed<16, 3>
-// #define WTYPE ap_fixed<16, 0>
-// #define OUTTYPE ap_fixed<32, 3>
+// #define BLOCKTYPE float
+// #define WTYPE float
+// #define OUTTYPE float
+#define BLOCKTYPE ap_fixed<16, 5>
+#define WTYPE ap_fixed<16, 3>
+#define OUTTYPE ap_fixed<32, 10>
 #endif
 const unsigned int CHout = 32;
 const unsigned int CHin = 32;
@@ -98,7 +98,7 @@ loop_In:
 	void raiseerror()
 	{
 		errc ++;
-		if (errc == 10)
+		if (errc == 0)
 		{
 			int * pppp=0;
 			*pppp = 0;
@@ -129,9 +129,9 @@ void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out+2][C_out+
 				{
 					float realvalue;
 					fscanf(f, "%f", &realvalue);
-					if (fabs(realvalue - Out[j][k][i]) > 1e-4)
+					if (fabs(realvalue - float(Out[j][k][i]))>0.1)
 					{
-						printf("check failed. %d, %d %d %d, %f, %f\n", ss, i, j, k, realvalue, Out[j][k][i]);
+						printf("check failed. %d, %d %d %d, %f, %f\n", ss, i, j, k, realvalue, float(Out[j][k][i]));
 						raiseerror();
 					}
 				}
@@ -324,6 +324,11 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 {
 	//FC: 512 * 10
 	OUTTYPE tmp[10];
+	for (int i = 0; i < 10; i++)
+	{
+		#pragma HLS UNROLL
+		tmp[i] = FC_bias[i];
+	}
 	for(int i = 0; i < 512; i++)
 	{
 		for(int j = 0; j < 10; j++)
@@ -334,11 +339,14 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 		}
 	}
 	*result = 0;
-	int maximun = 0;
-	for(int i = 1; i < 10; i++)
+	OUTTYPE maximun = tmp[0];
+	for(int i = 0; i < 10; i++)
 	{
+		#ifdef DEBUG
+		printf("%f\n", float(tmp[i]));
+		#endif
 		#pragma HLS unroll
-		if (tmp[i] + FC_bias[i] > maximun)
+		if (tmp[i] > maximun)
 		{
 			*result = i;
 			maximun = tmp[i];
@@ -411,6 +419,9 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 			Relu(Out, R_outs[i], C_outs[i]);
 		}
 	}
+	#ifdef DEBUG
+		// prepare_in(Out, In_0, 4, 4, 32);
+	#endif
 	int result;
 	BLOCKTYPE embed[512];
 	for(int cho = 0; cho < 32; cho++)
