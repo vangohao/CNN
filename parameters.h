@@ -1,4 +1,4 @@
-const WTYPE W_first[3][3][3][16] = {
+WTYPE W_first[3][3][3][16] = 
 {
 
 
