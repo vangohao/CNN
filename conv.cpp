@@ -15,8 +15,8 @@
 #endif
 const unsigned int CHout = 32;
 const unsigned int CHin = 32;
-const unsigned int R_out = 32;
-const unsigned int C_out = 32;
+const unsigned int R_out = 16;
+const unsigned int C_out = 16;
 const int K = 3;
 const OUTTYPE FC_bias[10] = {0.16981252,-0.5442378,-0.051570684,0.4738487,-0.05050631,0.024526794,-0.07334793,0.38040447,-0.25858143,-0.07002075};
 #include "parameters.h"
@@ -257,17 +257,17 @@ void conv_batch(BLOCKTYPE In_0[R_out+2][C_out+2][CHin],OUTTYPE Out[R_out][C_out]
 	loop_Kc:
 		for (int kc = 0; kc < K; kc++)
 		{
-		loop_CHin:
-			for (int chi = 0; chi < bCHin; chi++)
+		loop_R1:
+			for (int r1 = 0; r1 < bR_out; r1++)
 			{
-			loop_R1:
-				for (int r1 = 0; r1 < bR_out; r1++)
+			loop_C1:
+				for (int c1 = 0; c1 < bC_out; c1++)
 				{
-				loop_C1:
-					for (int c1 = 0; c1 < bC_out; c1++)
+				loop_CHin:
+					for (int chi = 0; chi < bCHin; chi++)
 					{
-	// #pragma HLS UNROLL factor = 2
-	#pragma HLS PIPELINE
+	// #pragma HLS UNROLL factor = 4
+	#pragma HLS PIPELINE factor = 2
 					loop_CHout:
 						for (int cho = 0; cho < CHout; cho++)
 						{
