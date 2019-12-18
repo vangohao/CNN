@@ -12,9 +12,10 @@
 #endif
 const unsigned int CHout = 32;
 const unsigned int CHin = 32;
-const unsigned int R_out = 16;
-const unsigned int C_out = 16;
+const unsigned int R_out = 32;
+const unsigned int C_out = 32;
 const int K = 3;
+const OUTTYPE FC_bias[10] = {0.16981252,-0.5442378,-0.051570684,0.4738487,-0.05050631,0.024526794,-0.07334793,0.38040447,-0.25858143,-0.07002075};
 
 inline WTYPE w_to_int8(d_type x)
 {
@@ -145,11 +146,9 @@ void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CH
 					loop_CHin:
 					for (int chi = 0; chi < 3; chi++)
 					{
-	// #pragma HLS UNROLL factor = 2
 						loop_CHout:
 						for (int cho = 0; cho < 16; cho++)
 						{
-							// #pragma HLS UNROLL
 							#pragma HLS PIPELINE
 							#pragma resource core=DSP48 variable=tmp
 							for (int i = 0; i < 2; i++)
@@ -288,7 +287,7 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 	for(int i = 1; i < 10; i++)
 	{
 		#pragma HLS unroll
-		if (tmp[i] > maximun)
+		if (tmp[i] + FC_bias[i] > maximun)
 		{
 			*result = i;
 			maximun = tmp[i];
@@ -297,37 +296,12 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 }
 void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 {
-// #pragma HLS ALLOCATION instances = fmul limit = 32 operation
-// #pragma HLS ALLOCATION instances = fadd limit = 32 operation
-
-/*
-	In  : Input feature map, CHin*R*C
-	Out : Output feature map, CHout*Rout*Cout
-	W : weights, CHout*CHin*Kr*Kc
-	Parameter:  CHin|CHout|R|C|K|S
-	*/
 #pragma HLS INTERFACE s_axilite port = return
-// #pragma HLS INTERFACE m_axi depth = 24576 port = In offset = slave //adjust the depth as you need
-// #pragma HLS INTERFACE m_axi depth = 14400 port = Out offset = slave
-// #pragma HLS INTERFACE m_axi depth = 3456 port = W offset = slave
-// #pragma HLS INTERFACE m_axi depth = 256 port = Parameter offset = slave
-#pragma HLS INTERFACE m_axi depth = 100000 port = In offset = slave //adjust the depth as you need
+#pragma HLS INTERFACE m_axi depth = 100000 port = In offset = slave
 #pragma HLS INTERFACE m_axi depth = 100000 port = W offset = slave
 #pragma HLS INTERFACE m_axi depth = 100000 port = B offset = slave
 #pragma HLS INTERFACE m_axi depth = 100000 port = FC offset = slave
 #pragma HLS INTERFACE m_axi depth = 256 port = dest offset = slave
-
-	// 当前block size :
-	/*
-	CHin : 1
-	CHout : 16
-	R_in : 32
-	C_in : 32
-	R_out : ?
-	C_out : ?
-	K : 2, 3, 5
-	S : 1, 2
-	*/
 
 	// BLOCKTYPE In_0[R_out][C_out][CHin];
 	BLOCKTYPE Raw[34][34][3];
@@ -373,7 +347,7 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 		#pragma HLS unroll
 		load_w(W + w_offset, W_0, CHins[i],32);
 		load_b(B + b_offset, B_0, 32);
-		w_offset += R_outs[i] * R_outs[i] * CHins[i] * 32;
+		w_offset += 3 * 3 * CHins[i] * 32;
 		b_offset += 32;
 		prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
 		conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
