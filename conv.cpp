@@ -370,12 +370,13 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 	OUTTYPE Out[R_out][C_out][CHout];
 	BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin];
 	WTYPE W_0[K][K][CHin][CHout];
+	WTYPE W_1[K][K][CHin][CHout];
 	WTYPE B_0[CHout];
 	WTYPE FC_0[512][10];
 
 	const int R_outs[5] = {16, 16, 8, 8, 4};
 	const int C_outs[5] = {16, 16, 8, 8, 4};
-	const int CHins[5] = {16, 32, 32, 32, 32};
+	const int CHins[6] = {16, 32, 32, 32, 32, 0};
 	const bool Pools[5] = {0, 1, 0, 1, 0};
 // #pragma HLS RESOURCE variable=Out core=RAM_1P_LUTRAM
 // #pragma HLS ARRAY_PARTITION variable = In_0 block factor = 16 dim = 3
@@ -383,6 +384,7 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 // #pragma HLS ARRAY_PARTITION variable = Out complete
 // #pragma HLS ARRAY_PARTITION variable = W_0 complete dim=4
 #pragma HLS ARRAY_PARTITION variable = W_0 block factor = 16 dim=4
+#pragma HLS ARRAY_PARTITION variable = W_1 block factor = 16 dim=4
 // #pragma HLS ARRAY_PARTITION variable = W_0 block factor = 16 dim=3
 	// #pragma HLS ARRAY_PARTITION variable=W_0 complete
 
@@ -403,15 +405,31 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 	int w_offset = 16 * 3 * 3 * 3;
 	int b_offset = 16;
 	conv_first_and_pool(Raw, Out, W_first, B_0);
+	load_w(W+ w_offset, W_0, CHins[0], 32);
 	for (int i = 0; i < 5; i++)
 	{
 		#pragma HLS unroll
-		load_w(W + w_offset, W_0, CHins[i],32);
-		load_b(B + b_offset, B_0, 32);
 		w_offset += 3 * 3 * CHins[i] * 32;
-		b_offset += 32;
+		if (i % 2 == 0)
+		{
+			load_w(W + w_offset, W_1, CHins[i + 1],32);
+		}
+		else
+		{
+			load_w(W + w_offset, W_0, CHins[i + 1],32);
+		}
+		
+		load_b(B + b_offset, B_0, 32);
 		prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
-		conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
+		if (i % 2 == 0) 
+		{
+			conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
+		}
+		else
+		{
+			conv_batch(In_0, Out, W_1, B_0, R_outs[i], C_outs[i], CHins[i]);
+		}
+
 		if (Pools[i])
 		{
 			MaxPoolAndRelu(Out, R_outs[i], C_outs[i]);
@@ -420,6 +438,8 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 		{
 			Relu(Out, R_outs[i], C_outs[i]);
 		}
+		
+		b_offset += 32;
 	}
 	#ifdef DEBUG
 		// prepare_in(Out, In_0, 4, 4, 32);
