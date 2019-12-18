@@ -19,6 +19,7 @@ const unsigned int R_out = 32;
 const unsigned int C_out = 32;
 const int K = 3;
 const OUTTYPE FC_bias[10] = {0.16981252,-0.5442378,-0.051570684,0.4738487,-0.05050631,0.024526794,-0.07334793,0.38040447,-0.25858143,-0.07002075};
+#include "parameters.h"
 
 inline WTYPE w_to_int8(d_type x)
 {
@@ -365,7 +366,7 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 
 	// BLOCKTYPE In_0[R_out][C_out][CHin];
 	BLOCKTYPE Raw[34][34][3];
-	WTYPE W_first[3][3][3][16];
+	// WTYPE W_first[3][3][3][16];
 	OUTTYPE Out[R_out][C_out][CHout];
 	BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin];
 	WTYPE W_0[K][K][CHin][CHout];
@@ -397,7 +398,7 @@ void cnn(d_type *In, d_type *W, d_type * B, d_type * FC, int * dest)
 		}
 	}
 	load_in(In, Raw);
-	load_w_first(W, W_first);
+	// load_w_first(W, W_first);
 	load_b(B, B_0, 16);
 	int w_offset = 16 * 3 * 3 * 3;
 	int b_offset = 16;
