@@ -426,30 +426,30 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	int w_offset = 16 * 3 * 3 * 3;
 	int b_offset = 16;
 	conv_first_and_pool(Raw, Out, W_first, B_0);
-	load_w(W + w_offset, W_0, CHins[0], 32);
+	// load_w(W + w_offset, W_0, CHins[0], 32);
 	for (int i = 0; i < 5; i++)
 	{
 #pragma HLS unroll
+		// if (i % 2 == 0)
+		// {
+		// 	load_w(W + w_offset, W_1, CHins[i + 1], 32);
+		// }
+		// else
+		// {
+			load_w(W + w_offset, W_0, CHins[i], 32);
 		w_offset += 3 * 3 * CHins[i] * 32;
-		if (i % 2 == 0)
-		{
-			load_w(W + w_offset, W_1, CHins[i + 1], 32);
-		}
-		else
-		{
-			load_w(W + w_offset, W_0, CHins[i + 1], 32);
-		}
+		// }
 
 		load_b(B + b_offset, B_0, 32);
 		prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
-		if (i % 2 == 0)
-		{
+		// if (i % 2 == 0)
+		// {
 			conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
-		}
-		else
-		{
-			conv_batch(In_0, Out, W_1, B_0, R_outs[i], C_outs[i], CHins[i]);
-		}
+		// }
+		// else
+		// {
+		// 	conv_batch(In_0, Out, W_1, B_0, R_outs[i], C_outs[i], CHins[i]);
+		// }
 
 		if (Pools[i])
 		{
