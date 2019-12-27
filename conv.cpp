@@ -350,7 +350,7 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 		for (int j = 0; j < 10; j++)
 		{
 #pragma HLS pipeline
-			BLOCKTYPE x = FC[i * 10 + j];
+			BLOCKTYPE x = FC_data[i][j];
 			tmp[j] += x * embed[i];
 		}
 	}
