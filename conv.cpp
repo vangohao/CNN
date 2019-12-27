@@ -99,7 +99,7 @@ int errc = 0;
 void raiseerror()
 {
 	errc++;
-	if (errc == 0)
+	if (errc == 100)
 	{
 		int *pppp = 0;
 		*pppp = 0;
@@ -294,7 +294,7 @@ void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C
 // 									OUTTYPE tmp = Out[r1][c1][cho + 16 * half];
 // #pragma HLS UNROLL
 // 									// #pragma resource core=DSP48 variable=tmp
-// 									tmp += ((W_0[kr][kc][chi][cho + 16 * half] * In_0[r1 + kr][c1 + kc][part + chi]));
+// 									tmp += ((W_0[kr][kc][part + chi][cho + 16 * half] * In_0[r1 + kr][c1 + kc][part + chi]));
 // 									Out[r1][c1][cho + 16 * half] = tmp;
 // 								}
 // 							}
@@ -360,7 +360,7 @@ void Classify(BLOCKTYPE embed[512], d_type *FC, int *result)
 		for (int j = 0; j < 10; j++)
 		{
 #pragma HLS pipeline
-			BLOCKTYPE x = FC[i * 10 + j];
+			BLOCKTYPE x = FC_data[i][j];
 			tmp[j] += x * embed[i];
 		}
 	}
