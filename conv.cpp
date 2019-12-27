@@ -257,7 +257,7 @@ void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C
 	for (int kr = 0; kr < K; kr++)
 		for (int kc = 0; kc < K; kc++)
 			for (int chi = 0; chi<bCHin; chi++)
-			for(int cho  =0; cho < bCHout; cho++)
+			for(int cho  =0; cho <CHout; cho++)
 		{
 			#pragma HLS PIPELINE
 			Out[0][0][cho] += W_0[kr][kc][chi][cho];  //fuck
