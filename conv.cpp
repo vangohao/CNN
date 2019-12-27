@@ -249,56 +249,66 @@ void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C
 			{
 #pragma HLS pipeline
 #pragma HLS UNROLL factor=16
-				Out[r1][c1][cho] = B_1[cho];
+				Out[r1][c1][cho] = B_1[cho] + In_0[r1][c1][cho % bCHin];
+							
 			}
 		}
 	}
-loop_Kr:
 	for (int kr = 0; kr < K; kr++)
-	{
-	loop_Kc:
 		for (int kc = 0; kc < K; kc++)
+			for (int chi = 0; chi<bCHin; chi++)
+			for(int cho  =0; cho < bCHout; cho++)
 		{
-		loop_CHipart:
-			for (int part = 0; part < bCHin; part += 8)
-			{
-#pragma HLS LOOP_TRIPCOUNT max = 4 min = 2
-			loop_CHohalf:
-				for (int half = 0; half < 2; half++)
-				// int half = 0;
-				{
-				loop_R1:
-					for (int r1 = 0; r1 < bR_out; r1++)
-					{
-					loop_C1:
-						for (int c1 = 0; c1 < bC_out; c1++)
-						{
-#pragma HLS pipeline
-							// #pragma HLS PIPELINE
-						loop_CHin:
-							for (int chi = 0; chi < 8; chi++)
-							{
-#pragma HLS UNROLL
-							loop_CHout:
-								for (int cho = 0; cho < 16; cho++)
-								{
-									OUTTYPE tmp = Out[r1][c1][cho + 16 * half];
-#pragma HLS UNROLL
-									// #pragma resource core=DSP48 variable=tmp
-									tmp += ((W_0[kr][kc][chi][cho + 16 * half] * In_0[r1 + kr][c1 + kc][part + chi]));
-									Out[r1][c1][cho + 16 * half] = tmp;
-								}
-							}
-						}
-					}
-				}
-			}
+			#pragma HLS PIPELINE
+			Out[0][0][cho] += W_0[kr][kc][chi][cho];  //fuck
 		}
-	}
+// loop_Kr:
+// 	for (int kr = 0; kr < K; kr++)
+// 	{
+// 	loop_Kc:
+// 		for (int kc = 0; kc < K; kc++)
+// 		{
+// 		loop_CHipart:
+// 			for (int part = 0; part < bCHin; part += 8)
+// 			{
+// #pragma HLS LOOP_TRIPCOUNT max = 4 min = 2
+// 			loop_CHohalf:
+// 				for (int half = 0; half < 2; half++)
+// 				// int half = 0;
+// 				{
+// 				loop_R1:
+// 					for (int r1 = 0; r1 < bR_out; r1++)
+// 					{
+// 					loop_C1:
+// 						for (int c1 = 0; c1 < bC_out; c1++)
+// 						{
+// #pragma HLS pipeline
+// 							// #pragma HLS PIPELINE
+// 						loop_CHin:
+// 							for (int chi = 0; chi < 8; chi++)
+// 							{
+// #pragma HLS UNROLL
+// 							loop_CHout:
+// 								for (int cho = 0; cho < 16; cho++)
+// 								{
+// 									OUTTYPE tmp = Out[r1][c1][cho + 16 * half];
+// #pragma HLS UNROLL
+// 									// #pragma resource core=DSP48 variable=tmp
+// 									tmp += ((W_0[kr][kc][chi][cho + 16 * half] * In_0[r1 + kr][c1 + kc][part + chi]));
+// 									Out[r1][c1][cho + 16 * half] = tmp;
+// 								}
+// 							}
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
 }
 
 void MaxPoolAndRelu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out)
 {
+	// TODO : 和Prepare_in 放到一块儿。
 	for (int r1 = 0; r1 < (bR_out / 2); r1++)
 	{
 		for (int c1 = 0; c1 < (bC_out / 2); c1++)
