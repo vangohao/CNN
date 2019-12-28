@@ -20,7 +20,10 @@ const unsigned int C_out = 16;
 const int K = 3;
 const OUTTYPE FC_bias[10] = {0.16981252, -0.5442378, -0.051570684, 0.4738487, -0.05050631, 0.024526794, -0.07334793, 0.38040447, -0.25858143, -0.07002075};
 #include "parameters.h"
-
+#include "weight3.h"
+#include "weight4.h"
+#include "weight5.h"
+#include "weight6.h"
 inline WTYPE w_to_int8(d_type x)
 {
 	BLOCKTYPE y = 0;
@@ -35,7 +38,7 @@ inline BLOCKTYPE in_to_int8(d_type x)
 	return y;
 }
 
-void load_w(d_type *W, WTYPE W_0[K][K][CHin][CHout], int bCHin, int bCHout)
+void load_w(WTYPE *W, WTYPE W_0[K][K][CHin][CHout], int bCHin, int bCHout)
 {
 	for (int i = 0; i < bCHout; i++)
 	{
@@ -46,7 +49,7 @@ void load_w(d_type *W, WTYPE W_0[K][K][CHin][CHout], int bCHin, int bCHout)
 				for (int l = 0; l < K; l++)
 				{
 #pragma HLS PIPELINE
-					W_0[k][l][j][i] = w_to_int8(W[i * (bCHin * K * K) + j * K * K + k * K + l]);
+					W_0[k][l][j][i] = W[i * (bCHin * K * K) + j * K * K + k * K + l];
 				}
 			}
 		}
@@ -426,31 +429,23 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	int w_offset = 16 * 3 * 3 * 3;
 	int b_offset = 16;
 	conv_first_and_pool(Raw, Out, W_first, B_0);
-	// load_w(W + w_offset, W_0, CHins[0], 32);
+	// WTYPE * W_pointer[5] = {conv2_weight, conv3_weight, conv4_weight, conv5_weight,conv6_weight};
 	for (int i = 0; i < 5; i++)
 	{
 #pragma HLS unroll
-		// if (i % 2 == 0)
-		// {
-		// 	load_w(W + w_offset, W_1, CHins[i + 1], 32);
-		// }
-		// else
-		// {
-			load_w(W + w_offset, W_0, CHins[i], 32);
-		w_offset += 3 * 3 * CHins[i] * 32;
-		// }
-
+		if (i == 0)
+			load_w(conv2_weight, W_0, CHins[i], 32);
+		else if (i == 1)
+			load_w(conv3_weight, W_0, CHins[i], 32);
+		else if (i == 2)
+			load_w(conv4_weight, W_0, CHins[i], 32);
+		else if (i == 3)
+			load_w(conv5_weight, W_0, CHins[i], 32);
+		else if (i == 4)
+			load_w(conv6_weight, W_0, CHins[i], 32);
 		load_b(B + b_offset, B_0, 32);
 		prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
-		// if (i % 2 == 0)
-		// {
-			conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
-		// }
-		// else
-		// {
-		// 	conv_batch(In_0, Out, W_1, B_0, R_outs[i], C_outs[i], CHins[i]);
-		// }
-
+		conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
 		if (Pools[i])
 		{
 			MaxPoolAndRelu(Out, R_outs[i], C_outs[i]);
@@ -459,7 +454,6 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 		{
 			Relu(Out, R_outs[i], C_outs[i]);
 		}
-
 		b_offset += 32;
 	}
 #ifdef DEBUG
