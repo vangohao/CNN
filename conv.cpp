@@ -38,7 +38,7 @@ inline BLOCKTYPE in_to_int8(d_type x)
 	return y;
 }
 
-void load_w(WTYPE *W, WTYPE W_0[K][K][CHin][CHout], int bCHin, int bCHout)
+void load_w(WTYPE *W, WTYPE W_0[CHout][CHin][K][K], int bCHin, int bCHout)
 {
 	for (int i = 0; i < bCHout; i++)
 	{
@@ -49,29 +49,29 @@ void load_w(WTYPE *W, WTYPE W_0[K][K][CHin][CHout], int bCHin, int bCHout)
 				for (int l = 0; l < K; l++)
 				{
 #pragma HLS PIPELINE
-					W_0[k][l][j][i] = W[i * (bCHin * K * K) + j * K * K + k * K + l];
+					W_0[i][j][k][l] = W[i * (bCHin * K * K) + j * K * K + k * K + l];
 				}
 			}
 		}
 	}
 }
-void load_w_first(d_type *W, WTYPE W_0[K][K][3][16])
-{
-	for (int i = 0; i < 16; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			for (int k = 0; k < K; k++)
-			{
-				for (int l = 0; l < K; l++)
-				{
-#pragma HLS PIPELINE
-					W_0[k][l][j][i] = w_to_int8(W[i * (3 * K * K) + j * K * K + k * K + l]);
-				}
-			}
-		}
-	}
-}
+// void load_w_first(d_type *W, WTYPE W_0[16][3][K][K])
+// {
+// 	for (int i = 0; i < 16; i++)
+// 	{
+// 		for (int j = 0; j < 3; j++)
+// 		{
+// 			for (int k = 0; k < K; k++)
+// 			{
+// 				for (int l = 0; l < K; l++)
+// 				{
+// #pragma HLS PIPELINE
+// 					W_0[i][j][k][l] = w_to_int8(W[i * (3 * K * K) + j * K * K + k * K + l]);
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 void load_b(d_type *b, WTYPE B_0[32], int bCHout)
 {
 	for (int i = 0; i < bCHout; i++)
@@ -167,7 +167,7 @@ void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out + 2][C_ou
 		}
 	}
 }
-void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[3][3][3][16], WTYPE B_1[16])
+void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[16][3][3][3], WTYPE B_1[16])
 {
 loop_RR:
 	for (int r1 = 0; r1 < 32; r1 += 2)
@@ -214,7 +214,7 @@ loop_RR:
 								{
 #pragma resource core = DSP48 variable = tmp
 #pragma HLS UNROLL
-									OUTTYPE tmp = tmpOut[i][j][cho] + ((W_0[kr][kc][chi][cho] * In_0[r1 + i + kr][c1 + j + kc][chi]));
+									OUTTYPE tmp = tmpOut[i][j][cho] + ((W_0[cho][chi][kr][kc] * In_0[r1 + i + kr][c1 + j + kc][chi]));
 									tmpOut[i][j][cho] = tmp;
 								}
 							}
@@ -242,7 +242,7 @@ loop_RR:
 		}
 	}
 }
-void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[K][K][CHin][CHout], WTYPE B_1[CHout], int bR_out, int bC_out, int bCHin)
+void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[CHout][CHin][K][K], WTYPE B_1[CHout], int bR_out, int bC_out, int bCHin)
 {
 	for (int r1 = 0; r1 < bR_out; r1++)
 	{
@@ -288,7 +288,7 @@ loop_Kr:
 									OUTTYPE tmp = Out[r1][c1][cho + 16 * half];
 #pragma HLS UNROLL
 									// #pragma resource core=DSP48 variable=tmp
-									tmp += ((W_0[kr][kc][part + chi][cho + 16 * half] * In_0[r1 + kr][c1 + kc][part + chi]));
+									tmp += ((W_0[cho + 16 * half][part + chi][kr][kc] * In_0[r1 + kr][c1 + kc][part + chi]));
 									Out[r1][c1][cho + 16 * half] = tmp;
 								}
 							}
@@ -387,8 +387,8 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	// WTYPE W_first[3][3][3][16];
 	OUTTYPE Out[R_out][C_out][CHout];
 	BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin];
-	WTYPE W_0[K][K][CHin][CHout];
-	WTYPE W_1[K][K][CHin][CHout];
+	WTYPE W_0[CHout][CHin][K][K];
+	// WTYPE W_1[K][K][CHin][CHout];
 	WTYPE B_0[CHout];
 	WTYPE FC_0[512][10];
 
@@ -404,10 +404,10 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 
 // #pragma HLS ARRAY_PARTITION variable = Out complete
 // #pragma HLS ARRAY_PARTITION variable = W_0 complete dim=4
-#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor = 16 dim = 4
-#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor = 8 dim = 3
-#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 16 dim = 4
-#pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 8 dim = 3
+#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor = 8 dim = 2
+// #pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 16 dim = 4
+// #pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 8 dim = 3
 #pragma HLS ARRAY_PARTITION variable = B_0 cyclic factor = 16
 	// #pragma HLS ARRAY_PARTITION variable = W_0 block factor = 16 dim=3
 	// #pragma HLS ARRAY_PARTITION variable=W_0 complete
