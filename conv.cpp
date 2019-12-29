@@ -20,12 +20,12 @@ const unsigned int C_out = 32;
 const int K = 3;
 const OUTTYPE FC_bias[10] = {0.16981252, -0.5442378, -0.051570684, 0.4738487, -0.05050631, 0.024526794, -0.07334793, 0.38040447, -0.25858143, -0.07002075};
 #include "parameters.h"
-#include "weight1.h"
-#include "weight2.h"
-#include "weight3.h"
-#include "weight4.h"
-#include "weight5.h"
-#include "weight6.h"
+#include "weight_new1.h"
+#include "weight_new2.h"
+#include "weight_new3.h"
+#include "weight_new4.h"
+#include "weight_new5.h"
+#include "weight_new6.h"
 inline WTYPE w_to_int8(d_type x)
 {
 	BLOCKTYPE y = 0;
@@ -40,6 +40,7 @@ inline BLOCKTYPE in_to_int8(d_type x)
 	return y;
 }
 
+int fuck = 0;
 void load_w(WTYPE *W, WTYPE W_0[CHout][CHin][K][K], int bCHin, int bCHout)
 {
 	for (int i = 0; i < bCHout; i++)
@@ -56,6 +57,32 @@ void load_w(WTYPE *W, WTYPE W_0[CHout][CHin][K][K], int bCHin, int bCHout)
 			}
 		}
 	}
+	fuck ++;
+	char filename[50] = "../../../../weight_new0.h";
+	filename[strlen(filename) - 3] = '0' + fuck;
+	FILE * f = fopen(filename, "w");
+	fprintf(f, "{");
+	for(int  i = 0; i < 32; i++)
+	{
+		fprintf(f, "{");
+		for(int j = 0; j < 32; j++)
+		{
+			fprintf(f, "{");
+			for(int k = 0; k < K; k++)
+			{
+				fprintf(f, "{");
+				for(int l = 0; l < K; l++)
+				{
+					fprintf(f,"%.20f,", (i < bCHout && j< bCHin)? float(W_0[i][j][k][l]) : 0.0);
+				}
+				fprintf(f, "},\n");
+			}
+			fprintf(f, "},\n");
+		}
+		fprintf(f, "},\n");
+	}
+	fprintf(f, "};\n");
+	fclose(f);
 }
 void load_b(d_type *b, WTYPE B_0[32], int bCHout)
 {
@@ -172,7 +199,7 @@ void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin],
 	{
 		for (int c1 = 0; c1 < bC_out; c1++)
 		{
-			for (int cho = 0; cho < CHout; cho++)
+			for (int cho = 0; cho < bCHout; cho++)
 			{
 #pragma HLS pipeline
 #pragma HLS UNROLL factor=16
@@ -326,18 +353,32 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	const int CHins[6] = {3, 16, 32, 32, 32, 32};
 	const int CHouts[6] = {16, 32, 32, 32, 32, 32};
 	const bool Pools[6] = {1, 0, 1, 0, 1, 0};
-#pragma HLS RESOURCE variable=W_0 core=RAM_1P_LUTRAM
+#pragma HLS RESOURCE variable=weight1 core=RAM_1P_LUTRAM
+#pragma HLS ARRAY_PARTITION variable = weight1 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight1 cyclic factor = 8 dim = 2
+#pragma HLS RESOURCE variable=weight2 core=RAM_1P_LUTRAM
+#pragma HLS ARRAY_PARTITION variable = weight2 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight2 cyclic factor = 8 dim = 2
+#pragma HLS RESOURCE variable=weight3 core=RAM_1P_LUTRAM
+#pragma HLS ARRAY_PARTITION variable = weight3 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight3 cyclic factor = 8 dim = 2
+#pragma HLS RESOURCE variable=weight4 core=RAM_1P_LUTRAM
+#pragma HLS ARRAY_PARTITION variable = weight4 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight4 cyclic factor = 8 dim = 2
+#pragma HLS RESOURCE variable=weight5 core=RAM_1P_LUTRAM
+#pragma HLS ARRAY_PARTITION variable = weight5 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight5 cyclic factor = 8 dim = 2
+#pragma HLS RESOURCE variable=weight6 core=RAM_1P_LUTRAM
+#pragma HLS ARRAY_PARTITION variable = weight6 cyclic factor = 16 dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight6 cyclic factor = 8 dim = 2
+
+
 #pragma HLS ARRAY_PARTITION variable = In_0 cyclic factor = 8 dim = 3
 #pragma HLS ARRAY_PARTITION variable = Out cyclic factor = 16 dim = 3
 // #pragma HLS ARRAY_PARTITION variable = Raw cyclic factor = 2 dim = 0
 // #pragma HLS ARRAY_PARTITION variable = Raw cyclic factor = 2 dim = 1
 
 // #pragma HLS ARRAY_PARTITION variable = Out complete
-// #pragma HLS ARRAY_PARTITION variable = W_0 complete dim=4
-#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor = 16 dim = 1
-#pragma HLS ARRAY_PARTITION variable = W_0 cyclic factor = 8 dim = 2
-// #pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 16 dim = 4
-// #pragma HLS ARRAY_PARTITION variable = W_1 cyclic factor = 8 dim = 3
 #pragma HLS ARRAY_PARTITION variable = B_0 cyclic factor = 16
 	// #pragma HLS ARRAY_PARTITION variable = W_0 block factor = 16 dim=3
 	// #pragma HLS ARRAY_PARTITION variable=W_0 complete
@@ -358,22 +399,27 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	for (int i = 0; i < 6; i++)
 	{
 #pragma HLS unroll
-		if (i == 0)
-			load_w(conv1_weight, W_0, CHins[i], CHouts[i]);
-		else if (i == 1)
-			load_w(conv2_weight, W_0, CHins[i], CHouts[i]);
-		else if (i == 2)
-			load_w(conv3_weight, W_0, CHins[i], CHouts[i]);
-		else if (i == 3)
-			load_w(conv4_weight, W_0, CHins[i], CHouts[i]);
-		else if (i == 4)
-			load_w(conv5_weight, W_0, CHins[i], CHouts[i]);
-		else if (i == 5)
-			load_w(conv6_weight, W_0, CHins[i], CHouts[i]);
-		load_b(B + b_offset, B_0, CHouts[i]);
 		if (i > 0)
 			prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
-		conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+		load_b(B + b_offset, B_0, CHouts[i]);
+		if (i == 0)
+			// load_w(conv1_weight, W_0, CHins[i], CHouts[i]);
+			conv_batch(In_0, Out, weight1, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+		else if (i == 1)
+			// load_w(conv2_weight, W_0, CHins[i], CHouts[i]);
+			conv_batch(In_0, Out, weight2, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+		else if (i == 2)
+			// load_w(conv3_weight, W_0, CHins[i], CHouts[i]);
+			conv_batch(In_0, Out, weight3, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+		else if (i == 3)
+			// load_w(conv4_weight, W_0, CHins[i], CHouts[i]);
+			conv_batch(In_0, Out, weight4, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+		else if (i == 4)
+			// load_w(conv5_weight, W_0, CHins[i], CHouts[i]);
+			conv_batch(In_0, Out, weight5, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+		else if (i == 5)
+			// load_w(conv6_weight, W_0, CHins[i], CHouts[i]);
+			conv_batch(In_0, Out, weight6, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		if (Pools[i])
 		{
 			MaxPoolAndRelu(Out, R_outs[i], C_outs[i], CHouts[i]);
