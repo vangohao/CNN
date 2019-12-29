@@ -15,11 +15,13 @@
 #endif
 const unsigned int CHout = 32;
 const unsigned int CHin = 32;
-const unsigned int R_out = 16;
-const unsigned int C_out = 16;
+const unsigned int R_out = 32;
+const unsigned int C_out = 32;
 const int K = 3;
 const OUTTYPE FC_bias[10] = {0.16981252, -0.5442378, -0.051570684, 0.4738487, -0.05050631, 0.024526794, -0.07334793, 0.38040447, -0.25858143, -0.07002075};
 #include "parameters.h"
+#include "weight1.h"
+#include "weight2.h"
 #include "weight3.h"
 #include "weight4.h"
 #include "weight5.h"
@@ -55,23 +57,6 @@ void load_w(WTYPE *W, WTYPE W_0[CHout][CHin][K][K], int bCHin, int bCHout)
 		}
 	}
 }
-// void load_w_first(d_type *W, WTYPE W_0[16][3][K][K])
-// {
-// 	for (int i = 0; i < 16; i++)
-// 	{
-// 		for (int j = 0; j < 3; j++)
-// 		{
-// 			for (int k = 0; k < K; k++)
-// 			{
-// 				for (int l = 0; l < K; l++)
-// 				{
-// #pragma HLS PIPELINE
-// 					W_0[i][j][k][l] = w_to_int8(W[i * (3 * K * K) + j * K * K + k * K + l]);
-// 				}
-// 			}
-// 		}
-// 	}
-// }
 void load_b(d_type *b, WTYPE B_0[32], int bCHout)
 {
 	for (int i = 0; i < bCHout; i++)
@@ -80,7 +65,7 @@ void load_b(d_type *b, WTYPE B_0[32], int bCHout)
 		B_0[i] = b[i];
 	}
 }
-void load_in(d_type *In, BLOCKTYPE In_0[34][34][3])
+void load_in(d_type *In, BLOCKTYPE In_0[34][34][CHin])
 {
 loop_In:
 	for (int j = 0; j < 32; j++)
@@ -91,6 +76,18 @@ loop_In:
 			{
 #pragma HLS PIPELINE
 				In_0[j + 1][k + 1][i] = in_to_int8(In[i * (32 * 32) + j * 32 + k]);
+			}
+		}
+	}
+	for (int j = 0; j < 32; j++)
+	{
+		for (int k = 0; k < 32; k++)
+		{
+#pragma HLS PIPELINE
+			for (int i = 3; i < 8; i++)
+			{
+#pragma HLS UNROLL
+				In_0[j + 1][k + 1][i] = 0;
 			}
 		}
 	}
@@ -167,82 +164,9 @@ void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out + 2][C_ou
 		}
 	}
 }
-void conv_first_and_pool(BLOCKTYPE In_0[34][34][3], OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[16][3][3][3], WTYPE B_1[16])
-{
-loop_RR:
-	for (int r1 = 0; r1 < 32; r1 += 2)
-	{
-	loop_CC:
-		for (int c1 = 0; c1 < 32; c1 += 2)
-		{
-			OUTTYPE tmpOut[2][2][16];
-			#pragma HLS array_partition variable=tmpOut complete dim=1
-			#pragma HLS array_partition variable=tmpOut complete dim=2
-			#pragma HLS array_partition variable=tmpOut complete dim=3
-
-			for (int i = 0; i < 2; i++)
-			{
-#pragma HLS UNROLL
-				for (int j = 0; j < 2; j++)
-				{
-#pragma HLS UNROLL
-					for (int o = 0; o < 16; o++)
-					{
-#pragma HLS UNROLL
-						tmpOut[i][j][o] = B_1[o];
-					}
-				}
-			}
-		loop_Kr:
-			for (int kr = 0; kr < K; kr++)
-			{
-			loop_Kc:
-				for (int kc = 0; kc < K; kc++)
-				{
-				loop_CHin:
-					for (int chi = 0; chi < 3; chi++)
-					{
-					loop_CHout:
-						for (int cho = 0; cho < 16; cho++)
-						{
-#pragma HLS pipeline
-#pragma HLS UNROLL factor = 4
-							for (int i = 0; i < 2; i++)
-							{
-#pragma HLS UNROLL
-								for (int j = 0; j < 2; j++)
-								{
-#pragma resource core = DSP48 variable = tmp
-#pragma HLS UNROLL
-									OUTTYPE tmp = tmpOut[i][j][cho] + ((W_0[cho][chi][kr][kc] * In_0[r1 + i + kr][c1 + j + kc][chi]));
-									tmpOut[i][j][cho] = tmp;
-								}
-							}
-						}
-					}
-				}
-			}
-		// Max-pooling and ReLU
-		loop_MaxPoolReLU:
-			for (int o = 0; o < 16; o++)
-			{
-				Out[r1 >> 1][c1 >> 1][o] = 0;
-				// #pragma HLS UNROLL
-				for (int i = 0; i < 2; i++)
-				{
-					// #pragma HLS UNROLL
-					for (int j = 0; j < 2; j++)
-					{
-						// #pragma HLS UNROLL
-						if (Out[r1 >> 1][c1 >> 1][o] < tmpOut[i][j][o])
-							Out[r1 >> 1][c1 >> 1][o] = tmpOut[i][j][o];
-					}
-				}
-			}
-		}
-	}
-}
-void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[CHout][CHin][K][K], WTYPE B_1[CHout], int bR_out, int bC_out, int bCHin)
+void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], 
+	OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[CHout][CHin][K][K], 
+	WTYPE B_1[CHout], int bR_out, int bC_out, int bCHin, int bCHout)
 {
 	for (int r1 = 0; r1 < bR_out; r1++)
 	{
@@ -263,11 +187,11 @@ loop_Kr:
 		for (int kc = 0; kc < K; kc++)
 		{
 		loop_CHipart:
-			for (int part = 0; part < bCHin; part += 8)
+			for (int inpart = 0; inpart < bCHin; inpart += 8)
 			{
-#pragma HLS LOOP_TRIPCOUNT max = 4 min = 2
+#pragma HLS LOOP_TRIPCOUNT max = 4 min = 1
 			loop_CHohalf:
-				for (int half = 0; half < 2; half++)
+				for (int outpart = 0; outpart < bCHout; outpart += 16)
 				// int half = 0;
 				{
 				loop_R1:
@@ -285,11 +209,11 @@ loop_Kr:
 							loop_CHout:
 								for (int cho = 0; cho < 16; cho++)
 								{
-									OUTTYPE tmp = Out[r1][c1][cho + 16 * half];
+									OUTTYPE tmp = Out[r1][c1][outpart + cho];
 #pragma HLS UNROLL
 									// #pragma resource core=DSP48 variable=tmp
-									tmp += ((W_0[cho + 16 * half][part + chi][kr][kc] * In_0[r1 + kr][c1 + kc][part + chi]));
-									Out[r1][c1][cho + 16 * half] = tmp;
+									tmp += ((W_0[outpart + cho][inpart + chi][kr][kc] * In_0[r1 + kr][c1 + kc][inpart + chi]));
+									Out[r1][c1][outpart + cho] = tmp;
 								}
 							}
 						}
@@ -300,41 +224,47 @@ loop_Kr:
 	}
 }
 
-void MaxPoolAndRelu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out)
+void MaxPoolAndRelu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
 {
 	for (int r1 = 0; r1 < (bR_out / 2); r1++)
 	{
 		for (int c1 = 0; c1 < (bC_out / 2); c1++)
 		{
-#pragma HLS pipeline
-			for (int cho = 0; cho < CHout; cho++)
+			for (int outpart = 0; outpart < bCHout; outpart+=16)
 			{
-				#pragma HLS dependence variable=Out array inter RAW false
-				OUTTYPE tmp = 0;
-				for (int i = 0; i < 2; i++)
+#pragma HLS pipeline
+				for (int cho = 0; cho < 16; cho++)
 				{
-					for (int j = 0; j < 2; j++)
+					#pragma HLS dependence variable=Out array inter RAW false
+					OUTTYPE tmp = 0;
+					for (int i = 0; i < 2; i++)
 					{
-						if (Out[2 * r1 + i][2 * c1 + j][cho] > tmp)
-							tmp = Out[2 * r1 + i][2 * c1 + j][cho];
+						for (int j = 0; j < 2; j++)
+						{
+							if (Out[2 * r1 + i][2 * c1 + j][outpart+cho] > tmp)
+								tmp = Out[2 * r1 + i][2 * c1 + j][outpart+cho];
+						}
 					}
+					Out[r1][c1][outpart+cho] = tmp;
 				}
-				Out[r1][c1][cho] = tmp;
 			}
 		}
 	}
 }
-void Relu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out)
+void Relu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
 {
 	for (int r1 = 0; r1 < bR_out; r1++)
 	{
 		for (int c1 = 0; c1 < bC_out; c1++)
 		{
-#pragma HLS pipeline
-			for (int cho = 0; cho < CHout; cho++)
+			for (int outpart = 0; outpart < bCHout; outpart+=16)
 			{
-				if (Out[r1][c1][cho] < 0)
-					Out[r1][c1][cho] = 0;
+#pragma HLS pipeline
+				for (int cho = 0; cho < 16; cho++)
+				{
+					if (Out[r1][c1][outpart+cho] < 0)
+						Out[r1][c1][outpart+cho] = 0;
+				}
 			}
 		}
 	}
@@ -383,20 +313,20 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	// #pragma HLS INTERFACE m_axi depth = 256 port = dest offset = slave
 
 	// BLOCKTYPE In_0[R_out][C_out][CHin];
-	BLOCKTYPE Raw[34][34][3];
+	// BLOCKTYPE Raw[34][34][3];
 	// WTYPE W_first[3][3][3][16];
 	OUTTYPE Out[R_out][C_out][CHout];
 	BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin];
 	WTYPE W_0[CHout][CHin][K][K];
-	// WTYPE W_1[K][K][CHin][CHout];
 	WTYPE B_0[CHout];
 	WTYPE FC_0[512][10];
 
-	const int R_outs[5] = {16, 16, 8, 8, 4};
-	const int C_outs[5] = {16, 16, 8, 8, 4};
-	const int CHins[6] = {16, 32, 32, 32, 32, 0};
-	const bool Pools[5] = {0, 1, 0, 1, 0};
-// #pragma HLS RESOURCE variable=Out core=RAM_1P_LUTRAM
+	const int R_outs[6] = {32, 16, 16, 8, 8, 4};
+	const int C_outs[6] = {32, 16, 16, 8, 8, 4};
+	const int CHins[6] = {3, 16, 32, 32, 32, 32};
+	const int CHouts[6] = {16, 32, 32, 32, 32, 32};
+	const bool Pools[6] = {1, 0, 1, 0, 1, 0};
+#pragma HLS RESOURCE variable=W_0 core=RAM_1P_LUTRAM
 #pragma HLS ARRAY_PARTITION variable = In_0 cyclic factor = 8 dim = 3
 #pragma HLS ARRAY_PARTITION variable = Out cyclic factor = 16 dim = 3
 // #pragma HLS ARRAY_PARTITION variable = Raw cyclic factor = 2 dim = 0
@@ -415,46 +345,44 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 	for (int i = 0; i < 34; i++)
 	{
 #pragma HLS pipeline
-		for (int j = 0; j < 3; j++)
+		for (int j = 0; j < 8; j++)
 		{
-			Raw[i][0][j] = 0;
-			Raw[i][33][j] = 0;
-			Raw[0][i][j] = 0;
-			Raw[33][i][j] = 0;
+			In_0[i][0][j] = 0;
+			In_0[i][33][j] = 0;
+			In_0[0][i][j] = 0;
+			In_0[33][i][j] = 0;
 		}
 	}
-	load_in(In, Raw);
-	// load_w_first(W, W_first);
-	load_b(B, B_0, 16);
-	int w_offset = 16 * 3 * 3 * 3;
-	int b_offset = 16;
-	conv_first_and_pool(Raw, Out, W_first, B_0);
-	// WTYPE * W_pointer[5] = {conv2_weight, conv3_weight, conv4_weight, conv5_weight,conv6_weight};
-	for (int i = 0; i < 5; i++)
+	load_in(In, In_0);
+	int b_offset = 0;
+	for (int i = 0; i < 6; i++)
 	{
 #pragma HLS unroll
 		if (i == 0)
-			load_w(conv2_weight, W_0, CHins[i], 32);
+			load_w(conv1_weight, W_0, CHins[i], CHouts[i]);
 		else if (i == 1)
-			load_w(conv3_weight, W_0, CHins[i], 32);
+			load_w(conv2_weight, W_0, CHins[i], CHouts[i]);
 		else if (i == 2)
-			load_w(conv4_weight, W_0, CHins[i], 32);
+			load_w(conv3_weight, W_0, CHins[i], CHouts[i]);
 		else if (i == 3)
-			load_w(conv5_weight, W_0, CHins[i], 32);
+			load_w(conv4_weight, W_0, CHins[i], CHouts[i]);
 		else if (i == 4)
-			load_w(conv6_weight, W_0, CHins[i], 32);
-		load_b(B + b_offset, B_0, 32);
-		prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
-		conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i]);
+			load_w(conv5_weight, W_0, CHins[i], CHouts[i]);
+		else if (i == 5)
+			load_w(conv6_weight, W_0, CHins[i], CHouts[i]);
+		load_b(B + b_offset, B_0, CHouts[i]);
+		if (i > 0)
+			prepare_in(Out, In_0, R_outs[i], C_outs[i], CHins[i]);
+		conv_batch(In_0, Out, W_0, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		if (Pools[i])
 		{
-			MaxPoolAndRelu(Out, R_outs[i], C_outs[i]);
+			MaxPoolAndRelu(Out, R_outs[i], C_outs[i], CHouts[i]);
 		}
 		else
 		{
-			Relu(Out, R_outs[i], C_outs[i]);
+			Relu(Out, R_outs[i], C_outs[i], CHouts[i]);
 		}
-		b_offset += 32;
+		b_offset += CHouts[i];
 	}
 #ifdef DEBUG
 	// prepare_in(Out, In_0, 4, 4, 32);
