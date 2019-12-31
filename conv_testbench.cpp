@@ -28,21 +28,24 @@ int testimage(int index)
 			Pin[i * width * 3 + j] = img_data[j];
 		}
 	}
-	float image[height * width * 3];
+	unsigned char image[height * width * 3];
 	for(int i = 0; i < height; i++)
 	{
 		for(int j = 0; j < width; j++)
 		{
 			for(int k = 0; k < 3; k++)
 			{
-				image[k * height * width + i * width + j] = 4. * (float(Pin[i * width * 3 + j * 3 + k]) - 128) / 256.0;
+				// image[k * height * width + i * width + j] = 4. * (float(Pin[i * width * 3 + j * 3 + k]) - 128) / 256.0;
+				unsigned char xx;
+				xx = Pin[i * width * 3 + j * 3 + k];
+				image[k * height * width + i * width + j] = xx;
 			}
 		}
 	}
 	#else
 	int height = 32;
 	int width = 32;
-	float image[height * width * 3];
+	unsigned char image[height * width * 3];
 	FILE * cheet;
 	cheet = fopen("../../../../../cheet/input.dat", "r");
 	for(int k = 0; k < 3; k++)
@@ -51,62 +54,67 @@ int testimage(int index)
 		{
 			for(int j = 0; j < width; j++)
 			{
-				float xx;
-				fscanf(cheet, "%f", &xx);
-				image[k * height * width + i * width + j] = 4. * (xx - 128) / 256.0;
+				unsigned char xx;
+				fscanf(cheet, "%u", &xx);
+				image[k * height * width + i * width + j] = xx;
 			}
 		}
 	}
 	#endif
-	int weight = 16 * 3 * 3 * 3 + 32 * 16 * 3 * 3 + 32 * 32 * 3 * 3 * 4;
-	d_type *Weight_data = (d_type*)malloc(weight * sizeof(d_type));
-	int bias = 16 + 32 * 5;
-	d_type *Bias_data = (d_type*)malloc(bias * sizeof(d_type));
-	int fc = 512 * 10;
-	d_type *FC_data = (d_type*)malloc(fc * sizeof(d_type));
-	int i;
-	FILE * f;
-	char filename[50] = "../../../../../weights/conv0.weight.dat";
-	i = 0;
-	for(int l = 1; l <= 6; l++)
-	{
-		filename[27] = (l + '0');
-		f = fopen(filename, "r");
-		float x;
-		while(fscanf(f, "%f", &x) != EOF)
-		{
-			Weight_data[i] = x;
-			i++;
-		}
-		fclose(f);
-	}
-	char biasname[50] = "../../../../../weights/conv0.bias.dat";
-	i = 0;
-	for(int l = 1; l <= 6; l++)
-	{
-		biasname[27] = (l + '0');
-		f = fopen(biasname, "r");
-		float x;
-		while(fscanf(f, "%f", &x) != EOF)
-		{
-			Bias_data[i] = x;
-			i++;
-		}
-		fclose(f);
-	}
+	// int weight = 16 * 3 * 3 * 3 + 32 * 16 * 3 * 3 + 32 * 32 * 3 * 3 * 4;
+	// d_type *Weight_data = (d_type*)malloc(weight * sizeof(d_type));
+	// int bias = 16 + 32 * 5;
+	// d_type *Bias_data = (d_type*)malloc(bias * sizeof(d_type));
+	// int fc = 512 * 10;
+	// d_type *FC_data = (d_type*)malloc(fc * sizeof(d_type));
+	// int i;
+	// FILE * f;
+	// char filename[50] = "../../../../../weights/conv0.weight.dat";
+	// char outname[50] = "../../../../../CNN/conv0.weight.dat";
+	// i = 0;
+	// for(int l = 1; l <= 6; l++)
+	// {
+	// 	filename[27] = (l + '0');
+	// 	outname[27] = (l + '0');
+	// 	f = fopen(filename, "r");
+	// 	FILE *ou = fopen(outname, "w");
+	// 	float x;
+	// 	while(fscanf(f, "%f", &x) != EOF)
+	// 	{
+	// 		Weight_data[i] = x;
+	// 		fprintf(ou, "%.20f,\n", x);
+	// 		i++;
+	// 	}
+	// 	fclose(ou);
+	// 	fclose(f);
+	// }
+	// char biasname[50] = "../../../../../weights/conv0.bias.dat";
+	// i = 0;
+	// for(int l = 1; l <= 6; l++)
+	// {
+	// 	biasname[27] = (l + '0');
+	// 	f = fopen(biasname, "r");
+	// 	float x;
+	// 	while(fscanf(f, "%f", &x) != EOF)
+	// 	{
+	// 		Bias_data[i] = x;
+	// 		i++;
+	// 	}
+	// 	fclose(f);
+	// }
 
-	f = fopen("../../../../../weights/fc1.weight.dat", "r");
-	for(int i = 0; i < 10; i++)
-	for(int j = 0; j < 512; j++)
-	{
-		float x;
-		fscanf(f,"%f", &x);
-		FC_data[j * 10 + i] = x;
-	}
-	fclose(f);
+	// f = fopen("../../../../../weights/fc1.weight.dat", "r");
+	// for(int i = 0; i < 10; i++)
+	// for(int j = 0; j < 512; j++)
+	// {
+	// 	float x;
+	// 	fscanf(f,"%f", &x);
+	// 	FC_data[j * 10 + i] = x;
+	// }
+	// fclose(f);
 
 	int result;
-	cnn(image, Weight_data, Bias_data, FC_data, &result);
+	cnn((unsigned long long *)image, &result);
 	return result == CIFAR[index];
 }
 int main()
