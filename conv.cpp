@@ -157,9 +157,9 @@ void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out + 2][C_ou
 			{
 				float realvalue;
 				fscanf(f, "%f", &realvalue);
-				if (fabs(realvalue - float(Out[j][k][i])) > 0.1)
+				if (fabs(realvalue - float(In_0[j+ 1][k+1][i])) > 0.1)
 				{
-					printf("check failed. %d, %d %d %d, %f, %f\n", ss, i, j, k, realvalue, float(Out[j][k][i]));
+					printf("check failed. %d, %d %d %d, %f, %f\n", ss, i, j, k, realvalue, float(In_0[j+1][k+1][i]));
 					raiseerror();
 				}
 			}
@@ -167,18 +167,18 @@ void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out + 2][C_ou
 	}
 
 #endif
-	for (int r = 0; r < bR_out; r++)
-	{
-		for (int c = 0; c < bC_out; c++)
-		{
-#pragma HLS pipeline
-			for (int chi = 0; chi < bCHin; chi++)
-			{
-#pragma HLS unroll
-				In_0[r + 1][c + 1][chi] = Out[r][c][chi];
-			}
-		}
-	}
+// 	for (int r = 0; r < bR_out; r++)
+// 	{
+// 		for (int c = 0; c < bC_out; c++)
+// 		{
+// #pragma HLS pipeline
+// 			for (int chi = 0; chi < bCHin; chi++)
+// 			{
+// #pragma HLS unroll
+// 				In_0[r + 1][c + 1][chi] = Out[r][c][chi];
+// 			}
+// 		}
+// 	}
 	for (int r = 0; r < bR_out + 2; r++)
 	{
 #pragma HLS pipeline
@@ -191,7 +191,7 @@ void prepare_in(OUTTYPE Out[R_out][C_out][CHout], BLOCKTYPE In_0[R_out + 2][C_ou
 		}
 	}
 }
-void conv_batch(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], 
+void conv_level(BLOCKTYPE In_0[R_out + 2][C_out + 2][CHin], 
 	OUTTYPE Out[R_out][C_out][CHout], WTYPE W_0[CHout][CHin][K][K], 
 	WTYPE B_1[CHout], int bR_out, int bC_out, int bCHin, int bCHout)
 {
@@ -251,7 +251,7 @@ loop_Kr:
 	}
 }
 
-void MaxPoolAndRelu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
+void MaxPoolAndRelu(BLOCKTYPE In[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
 {
 	for (int r1 = 0; r1 < (bR_out / 2); r1++)
 	{
@@ -272,13 +272,13 @@ void MaxPoolAndRelu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, in
 								tmp = Out[2 * r1 + i][2 * c1 + j][outpart+cho];
 						}
 					}
-					Out[r1][c1][outpart+cho] = tmp;
+					In[r1 + 1][c1 + 1][outpart+cho] = tmp;
 				}
 			}
 		}
 	}
 }
-void Relu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
+void Relu(BLOCKTYPE In[R_out + 2][C_out + 2][CHin], OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
 {
 	for (int r1 = 0; r1 < bR_out; r1++)
 	{
@@ -290,7 +290,12 @@ void Relu(OUTTYPE Out[R_out][C_out][CHout], int bR_out, int bC_out, int bCHout)
 				for (int cho = 0; cho < 16; cho++)
 				{
 					if (Out[r1][c1][outpart+cho] < 0)
-						Out[r1][c1][outpart+cho] = 0;
+						In[r1 + 1][c1 + 1][outpart+cho] = 0;
+					else
+					{
+						In[r1 + 1][c1 + 1][outpart+cho] = Out[r1][c1][outpart+cho];
+					}
+					
 				}
 			}
 		}
@@ -404,29 +409,29 @@ void cnn(d_type *In, d_type *W, d_type *B, d_type *FC, int *dest)
 		load_b(B + b_offset, B_0, CHouts[i]);
 		if (i == 0)
 			// load_w(conv1_weight, W_0, CHins[i], CHouts[i]);
-			conv_batch(In_0, Out, weight1, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+			conv_level(In_0, Out, weight1, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		else if (i == 1)
 			// load_w(conv2_weight, W_0, CHins[i], CHouts[i]);
-			conv_batch(In_0, Out, weight2, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+			conv_level(In_0, Out, weight2, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		else if (i == 2)
 			// load_w(conv3_weight, W_0, CHins[i], CHouts[i]);
-			conv_batch(In_0, Out, weight3, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+			conv_level(In_0, Out, weight3, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		else if (i == 3)
 			// load_w(conv4_weight, W_0, CHins[i], CHouts[i]);
-			conv_batch(In_0, Out, weight4, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+			conv_level(In_0, Out, weight4, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		else if (i == 4)
 			// load_w(conv5_weight, W_0, CHins[i], CHouts[i]);
-			conv_batch(In_0, Out, weight5, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+			conv_level(In_0, Out, weight5, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		else if (i == 5)
 			// load_w(conv6_weight, W_0, CHins[i], CHouts[i]);
-			conv_batch(In_0, Out, weight6, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
+			conv_level(In_0, Out, weight6, B_0, R_outs[i], C_outs[i], CHins[i], CHouts[i]);
 		if (Pools[i])
 		{
-			MaxPoolAndRelu(Out, R_outs[i], C_outs[i], CHouts[i]);
+			MaxPoolAndRelu(In_0, Out, R_outs[i], C_outs[i], CHouts[i]);
 		}
 		else
 		{
-			Relu(Out, R_outs[i], C_outs[i], CHouts[i]);
+			Relu(In_0, Out, R_outs[i], C_outs[i], CHouts[i]);
 		}
 		b_offset += CHouts[i];
 	}
