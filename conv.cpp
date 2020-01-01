@@ -407,7 +407,7 @@ void cnn(unsigned long long *Img, int *dest)
 			for (int c = 0; c < 4; c++)
 			{
 #pragma HLS pipeline
-				embed[cho * 16 + r * 4 + c] = Out[r][c][cho];
+				embed[cho * 16 + r * 4 + c] = In[r+1][c+1][cho];
 			}
 		}
 	}
