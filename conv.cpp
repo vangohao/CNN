@@ -198,7 +198,7 @@ loop_Kr:
 			for (int inpart = 0; inpart < bCHin; inpart += 8)
 			{
 #pragma HLS LOOP_TRIPCOUNT max = 4 min = 1
-			loop_CHohalf:
+			loop_CHopart:
 				for (int outpart = 0; outpart < bCHout; outpart += 16)
 				{
 				loop_R1:
