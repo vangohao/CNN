@@ -1,4 +1,5 @@
 #include "conv.h"
+#include "omp.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,6 +122,7 @@ int main()
 {
 	#ifndef DEBUG
 	int total = 0;
+	#pragma omp parallel for default(shared) reduction(+:total)
 	for(int index = 0; index < 500; index++)
 	{
 		total += testimage(index);
